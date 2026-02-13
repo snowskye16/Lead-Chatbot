@@ -1,0 +1,18 @@
+[
+  {
+    "keywords": ["price", "prices", "cost", "pricing"],
+    "answer": "Our pricing depends on your requirements. Please contact us for a custom quote."
+  },
+  {
+    "keywords": ["hour", "hours", "open", "opening", "time"],
+    "answer": "We are open Monday to Friday, 9 AM to 6 PM."
+  },
+  {
+    "keywords": ["contact", "email", "phone", "reach"],
+    "answer": "You can contact us through our website or email us for support."
+  },
+  {
+    "keywords": ["service", "services", "offer", "offers"],
+    "answer": "We offer professional services tailored to our clients’ needs."
+  }
+]
