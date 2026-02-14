@@ -29,66 +29,6 @@
       box-shadow: 0 5px 20px rgba(0,0,0,0.2);
       z-index: 1000;
     }
-/* Smooth open/close animation */
-.chat-container {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: all 0.25s ease;
-  pointer-events: none;
-}
-
-.chat-container.active {
-  display: flex;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-/* Message fade animation */
-.message {
-  animation: fadeMessage 0.2s ease forwards;
-}
-
-@keyframes fadeMessage {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Typing dots */
-.typing-dots {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.typing-dots span {
-  width: 6px;
-  height: 6px;
-  background: #555;
-  border-radius: 50%;
-  animation: bounce 1.3s infinite;
-}
-
-.typing-dots span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.typing-dots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-/* Mobile optimization */
-@media (max-width: 480px) {
-  .chat-container {
-    width: 95%;
-    height: 70vh;
-    bottom: 80px;
-    right: 2.5%;
-  }
-}
 
     /* Chat Container */
     .chat-container {
@@ -101,16 +41,21 @@
       background: white;
       border-radius: 15px;
       box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-      display: none;
+      display: flex;
       flex-direction: column;
       overflow: hidden;
-      animation: fadeIn 0.2s ease-in-out;
       z-index: 999;
+
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.25s ease;
+      pointer-events: none;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .chat-container.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
     }
 
     .chat-header {
@@ -143,6 +88,12 @@
       border-radius: 18px;
       max-width: 75%;
       font-size: 14px;
+      animation: fadeMessage 0.2s ease forwards;
+    }
+
+    @keyframes fadeMessage {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .user {
@@ -181,14 +132,49 @@
     .chat-input button:hover {
       background: #1e40af;
     }
+
+    /* Typing dots */
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      background: #555;
+      border-radius: 50%;
+      animation: bounce 1.3s infinite;
+    }
+
+    .typing-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Mobile */
+    @media (max-width: 480px) {
+      .chat-container {
+        width: 95%;
+        height: 70vh;
+        bottom: 80px;
+        right: 2.5%;
+      }
+    }
   </style>
 </head>
 <body>
 
-<!-- Floating Button -->
 <div class="chat-toggle" onclick="toggleChat()">💬</div>
 
-<!-- Chat Box -->
 <div class="chat-container" id="chatContainer">
   <div class="chat-header">
     AI Lead Assistant
@@ -204,17 +190,14 @@
 </div>
 
 <script>
-<script>
 const sound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 
 function toggleChat() {
   const container = document.getElementById("chatContainer");
-  const input = document.getElementById("message");
-
   container.classList.toggle("active");
 
   if (container.classList.contains("active")) {
-    input.focus();
+    document.getElementById("message").focus();
   }
 }
 
@@ -278,7 +261,6 @@ async function send() {
     document.getElementById("typing")?.remove();
 
     createMessage(data.reply || "No response", "bot");
-
     sound.play();
 
   } catch (err) {
@@ -287,7 +269,6 @@ async function send() {
   }
 }
 
-// Press Enter
 document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("message");
 
@@ -300,8 +281,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   createMessage("Hi! 👋 How can I help you today?", "bot");
 });
-</script>
-
 </script>
 
 </body>
