@@ -9,6 +9,22 @@ const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 
 /* =====================================
+   CONFIG VALIDATION
+===================================== */
+
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("Missing OPENAI_API_KEY in environment");
+}
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  throw new Error("Missing Supabase credentials in environment");
+}
+
+if (!process.env.SESSION_SECRET) {
+  throw new Error("Missing SESSION_SECRET in environment");
+}
+
+/* =====================================
    APP SETUP
 ===================================== */
 
@@ -16,16 +32,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 /* =====================================
-   OPENAI
+   SERVICES
 ===================================== */
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-/* =====================================
-   SUPABASE
-===================================== */
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -36,22 +48,28 @@ const supabase = createClient(
    MIDDLEWARE
 ===================================== */
 
-app.set("trust proxy", 1); // important for Render (HTTPS)
+app.set("trust proxy", 1);
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "change-this-secret",
+    name: "ai-leads-session",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
     },
   })
 );
@@ -62,24 +80,29 @@ app.use(
 
 function isValidEmail(email) {
   if (!email) return false;
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email.trim().toLowerCase());
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim().toLowerCase());
 }
 
-function resetSession(sess) {
+function resetChatSession(sess) {
   sess.step = null;
   sess.name = null;
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.session || !req.session.isAdmin) {
+  if (!req.session?.isAdmin) {
     return res.redirect("/login");
   }
   next();
 }
 
-function escapeCSV(value) {
-  if (!value) return "";
+function escapeHTML(str = "") {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeCSV(value = "") {
   return `"${String(value).replace(/"/g, '""')}"`;
 }
 
@@ -87,7 +110,7 @@ function escapeCSV(value) {
    TEST ROUTE
 ===================================== */
 
-app.get("/api/test", (req, res) => {
+app.get("/api/test", (_, res) => {
   res.json({ message: "Backend is working 🚀" });
 });
 
@@ -95,7 +118,7 @@ app.get("/api/test", (req, res) => {
    AUTH ROUTES
 ===================================== */
 
-app.get("/login", (req, res) => {
+app.get("/login", (_, res) => {
   res.send(`
     <html>
       <body style="font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:white;">
@@ -120,7 +143,7 @@ app.post("/login", (req, res) => {
     return res.redirect("/admin");
   }
 
-  res.send("Invalid password");
+  res.status(401).send("Invalid password");
 });
 
 app.get("/logout", (req, res) => {
@@ -132,50 +155,6 @@ app.get("/logout", (req, res) => {
 /* =====================================
    ADMIN ROUTES
 ===================================== */
-
-// Delete Lead
-app.post("/admin/delete/:id", requireAdmin, async (req, res) => {
-  try {
-    await supabase.from("leads").delete().eq("id", req.params.id);
-    res.redirect("/admin");
-  } catch (err) {
-    console.error("Delete error:", err);
-    res.redirect("/admin");
-  }
-});
-
-// Export CSV
-app.get("/admin/export", requireAdmin, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    const headers = ["Name", "Email", "Date"];
-
-    const rows = data.map(l => [
-      escapeCSV(l.name),
-      escapeCSV(l.email),
-      escapeCSV(new Date(l.created_at).toLocaleString())
-    ]);
-
-    const csv = [
-      headers.join(","),
-      ...rows.map(r => r.join(","))
-    ].join("\n");
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=leads.csv");
-    res.status(200).send(csv);
-
-  } catch (err) {
-    console.error("Export error:", err);
-    res.status(500).send("Export failed");
-  }
-});
 
 // Dashboard
 app.get("/admin", requireAdmin, async (req, res) => {
@@ -196,8 +175,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
     const rows = filtered.map(l => `
       <tr>
-        <td>${l.name || "-"}</td>
-        <td>${l.email || "-"}</td>
+        <td>${escapeHTML(l.name || "-")}</td>
+        <td>${escapeHTML(l.email || "-")}</td>
         <td>${new Date(l.created_at).toLocaleString()}</td>
         <td>
           <form method="POST" action="/admin/delete/${l.id}">
@@ -240,7 +219,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
         </div>
 
         <form method="GET" action="/admin" style="margin-bottom:20px;">
-          <input type="text" name="search" placeholder="Search name or email..." value="${search}">
+          <input type="text" name="search" placeholder="Search name or email..." value="${escapeHTML(search)}">
           <button style="padding:8px 12px;">Search</button>
         </form>
 
@@ -264,6 +243,52 @@ app.get("/admin", requireAdmin, async (req, res) => {
   }
 });
 
+// Delete Lead
+app.post("/admin/delete/:id", requireAdmin, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from("leads")
+      .delete()
+      .eq("id", req.params.id);
+
+    if (error) throw error;
+
+    res.redirect("/admin");
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.redirect("/admin");
+  }
+});
+
+// Export CSV
+app.get("/admin/export", requireAdmin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const csv = [
+      ["Name", "Email", "Date"].join(","),
+      ...data.map(l => [
+        escapeCSV(l.name),
+        escapeCSV(l.email),
+        escapeCSV(new Date(l.created_at).toLocaleString())
+      ].join(","))
+    ].join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=leads.csv");
+    res.status(200).send(csv);
+
+  } catch (err) {
+    console.error("Export error:", err);
+    res.status(500).send("Export failed");
+  }
+});
+
 /* =====================================
    CHAT
 ===================================== */
@@ -271,7 +296,9 @@ app.get("/admin", requireAdmin, async (req, res) => {
 app.post("/chat", async (req, res) => {
   try {
     const message = req.body.message?.trim();
-    if (!message) return res.json({ reply: "Please type a message." });
+    if (!message) {
+      return res.json({ reply: "Please type a message." });
+    }
 
     if (!req.session.step && message.toLowerCase().includes("quote")) {
       req.session.step = 1;
@@ -290,10 +317,13 @@ app.post("/chat", async (req, res) => {
       }
 
       await supabase.from("leads").insert([
-        { name: req.session.name, email: message.toLowerCase() }
+        {
+          name: req.session.name,
+          email: message.toLowerCase(),
+        },
       ]);
 
-      resetSession(req.session);
+      resetChatSession(req.session);
       return res.json({ reply: "Thanks! We'll contact you shortly 😊" });
     }
 
