@@ -29,6 +29,66 @@
       box-shadow: 0 5px 20px rgba(0,0,0,0.2);
       z-index: 1000;
     }
+/* Smooth open/close animation */
+.chat-container {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.chat-container.active {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Message fade animation */
+.message {
+  animation: fadeMessage 0.2s ease forwards;
+}
+
+@keyframes fadeMessage {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Typing dots */
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  background: #555;
+  border-radius: 50%;
+  animation: bounce 1.3s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Mobile optimization */
+@media (max-width: 480px) {
+  .chat-container {
+    width: 95%;
+    height: 70vh;
+    bottom: 80px;
+    right: 2.5%;
+  }
+}
 
     /* Chat Container */
     .chat-container {
@@ -144,10 +204,56 @@
 </div>
 
 <script>
+<script>
+const sound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+
 function toggleChat() {
   const container = document.getElementById("chatContainer");
-  container.style.display =
-    container.style.display === "flex" ? "none" : "flex";
+  const input = document.getElementById("message");
+
+  container.classList.toggle("active");
+
+  if (container.classList.contains("active")) {
+    input.focus();
+  }
+}
+
+function createMessage(text, type) {
+  const chat = document.getElementById("chat");
+
+  const msg = document.createElement("div");
+  msg.className = "message " + type;
+  msg.innerText = text;
+
+  chat.appendChild(msg);
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
+
+  return msg;
+}
+
+function showTyping() {
+  const chat = document.getElementById("chat");
+
+  const typing = document.createElement("div");
+  typing.className = "message bot";
+  typing.id = "typing";
+
+  typing.innerHTML = `
+    <div class="typing-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  `;
+
+  chat.appendChild(typing);
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
 }
 
 async function send() {
@@ -155,39 +261,47 @@ async function send() {
   const message = input.value.trim();
   if (!message) return;
 
-  const chat = document.getElementById("chat");
-
-  const userMsg = document.createElement("div");
-  userMsg.className = "message user";
-  userMsg.innerText = message;
-  chat.appendChild(userMsg);
-
+  createMessage(message, "user");
   input.value = "";
 
-  const res = await fetch("/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
-  });
+  showTyping();
 
-  const data = await res.json();
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
 
-  const botMsg = document.createElement("div");
-  botMsg.className = "message bot";
-  botMsg.innerText = data.reply || "No response";
-  chat.appendChild(botMsg);
+    const data = await res.json();
 
-  chat.scrollTop = chat.scrollHeight;
+    document.getElementById("typing")?.remove();
+
+    createMessage(data.reply || "No response", "bot");
+
+    sound.play();
+
+  } catch (err) {
+    document.getElementById("typing")?.remove();
+    createMessage("⚠️ Something went wrong.", "bot");
+  }
 }
 
-// Auto welcome
-window.onload = () => {
-  const chat = document.getElementById("chat");
-  const welcome = document.createElement("div");
-  welcome.className = "message bot";
-  welcome.innerText = "Hi! 👋 How can I help you today?";
-  chat.appendChild(welcome);
-};
+// Press Enter
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("message");
+
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  createMessage("Hi! 👋 How can I help you today?", "bot");
+});
+</script>
+
 </script>
 
 </body>
