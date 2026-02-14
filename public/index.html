@@ -1,26 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Lead Chatbot</title>
-</head>
-<body>
-  <h2>AI Lead Chatbot</h2>
-  <input id="message" placeholder="Type message..." />
-  <button onclick="send()">Send</button>
-  <p id="response"></p>
+<script>
+async function send() {
+  const messageInput = document.getElementById("message");
+  const message = messageInput.value.trim();
 
-  <script>
-    async function send() {
-      const message = document.getElementById("message").value;
-      const res = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message })
-      });
+  if (!message) return;
 
-      const data = await res.json();
-      document.getElementById("response").innerText = data.reply;
-    }
-  </script>
-</body>
-</html>
+  const res = await fetch("/chat", {   // ✅ FIXED HERE
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
+  });
+
+  const data = await res.json();
+  document.getElementById("response").innerText = data.reply;
+
+  messageInput.value = "";
+}
+</script>
