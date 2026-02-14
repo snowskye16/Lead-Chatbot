@@ -1,4 +1,4 @@
-console.log("🔥 CLEAN SERVER VERSION LOADED 🔥");
+console.log("🔥 PRODUCTION SERVER LOADED 🔥");
 
 require("dotenv").config();
 
@@ -8,33 +8,35 @@ const session = require("express-session");
 const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 
-/* ===============================
+/* =====================================
    APP SETUP
-=============================== */
+===================================== */
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ===============================
-   OPENAI SETUP
-=============================== */
+/* =====================================
+   OPENAI
+===================================== */
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-/* ===============================
-   SUPABASE SETUP
-=============================== */
+/* =====================================
+   SUPABASE
+===================================== */
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
-/* ===============================
+/* =====================================
    MIDDLEWARE
-=============================== */
+===================================== */
+
+app.set("trust proxy", 1); // important for Render (HTTPS)
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -43,34 +45,31 @@ app.use(express.static("public"));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "super-secret-key",
+    secret: process.env.SESSION_SECRET || "change-this-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // true only if using HTTPS
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: "lax",
     },
   })
 );
 
-/* ===============================
+/* =====================================
    HELPERS
-=============================== */
+===================================== */
 
 function isValidEmail(email) {
   if (!email) return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim().toLowerCase());
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email.trim().toLowerCase());
 }
 
 function resetSession(sess) {
   sess.step = null;
   sess.name = null;
 }
-
-/* ===============================
-   AUTH MIDDLEWARE
-=============================== */
 
 function requireAdmin(req, res, next) {
   if (!req.session || !req.session.isAdmin) {
@@ -79,58 +78,34 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-/* ===============================
+function escapeCSV(value) {
+  if (!value) return "";
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+/* =====================================
    TEST ROUTE
-=============================== */
+===================================== */
 
 app.get("/api/test", (req, res) => {
   res.json({ message: "Backend is working 🚀" });
 });
 
-/* ===============================
-   LOGIN ROUTES
-=============================== */
+/* =====================================
+   AUTH ROUTES
+===================================== */
 
 app.get("/login", (req, res) => {
   res.send(`
     <html>
-      <head>
-        <title>Admin Login</title>
-        <style>
-          body {
-            font-family: Arial;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #f4f6f9;
-          }
-          form {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-          }
-          input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            margin-bottom: 20px;
-          }
-          button {
-            padding: 10px 20px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            cursor: pointer;
-          }
-        </style>
-      </head>
-      <body>
-        <form method="POST" action="/login">
+      <body style="font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:white;">
+        <form method="POST" action="/login" style="background:#1e293b;padding:40px;border-radius:12px;">
           <h2>Admin Login</h2>
-          <input type="password" name="password" placeholder="Enter password" required />
-          <button type="submit">Login</button>
+          <input type="password" name="password" placeholder="Password" required 
+            style="padding:10px;width:100%;margin:15px 0;border:none;border-radius:6px;">
+          <button style="padding:10px 20px;background:#2563eb;border:none;color:white;border-radius:6px;">
+            Login
+          </button>
         </form>
       </body>
     </html>
@@ -154,11 +129,23 @@ app.get("/logout", (req, res) => {
   });
 });
 
-/* ===============================
-   ADMIN DASHBOARD
-=============================== */
+/* =====================================
+   ADMIN ROUTES
+===================================== */
 
-app.get("/admin", requireAdmin, async (req, res) => {
+// Delete Lead
+app.post("/admin/delete/:id", requireAdmin, async (req, res) => {
+  try {
+    await supabase.from("leads").delete().eq("id", req.params.id);
+    res.redirect("/admin");
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.redirect("/admin");
+  }
+});
+
+// Export CSV
+app.get("/admin/export", requireAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("leads")
@@ -167,132 +154,169 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
     if (error) throw error;
 
-    const rows = data
-      .map(
-        (lead) => `
-        <tr>
-          <td>${lead.name || "-"}</td>
-          <td>${lead.email || "-"}</td>
-          <td>${new Date(lead.created_at).toLocaleString()}</td>
-        </tr>
-      `
-      )
-      .join("");
+    const headers = ["Name", "Email", "Date"];
 
-    res.send(`
-      <html>
-        <head>
-          <title>Admin Dashboard</title>
-          <style>
-            body { font-family: Arial; padding: 40px; background:#f3f4f6; }
-            table { width:100%; border-collapse: collapse; background:white; }
-            th, td { padding:12px; border-bottom:1px solid #eee; text-align:left; }
-            th { background:#111827; color:white; }
-            tr:hover { background:#f9fafb; }
-            .logout { margin-bottom:20px; display:inline-block; }
-          </style>
-        </head>
-        <body>
-          <a class="logout" href="/logout">Logout</a>
-          <h1>AI Leads Dashboard</h1>
-          <table>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Date</th>
-            </tr>
-            ${rows}
-          </table>
-        </body>
-      </html>
-    `);
+    const rows = data.map(l => [
+      escapeCSV(l.name),
+      escapeCSV(l.email),
+      escapeCSV(new Date(l.created_at).toLocaleString())
+    ]);
+
+    const csv = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=leads.csv");
+    res.status(200).send(csv);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Server Error");
+    console.error("Export error:", err);
+    res.status(500).send("Export failed");
   }
 });
 
-/* ===============================
-   CHAT ENDPOINT
-=============================== */
+// Dashboard
+app.get("/admin", requireAdmin, async (req, res) => {
+  try {
+    const search = req.query.search?.toLowerCase() || "";
+
+    const { data, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const filtered = data.filter(l =>
+      l.name?.toLowerCase().includes(search) ||
+      l.email?.toLowerCase().includes(search)
+    );
+
+    const rows = filtered.map(l => `
+      <tr>
+        <td>${l.name || "-"}</td>
+        <td>${l.email || "-"}</td>
+        <td>${new Date(l.created_at).toLocaleString()}</td>
+        <td>
+          <form method="POST" action="/admin/delete/${l.id}">
+            <button style="background:#ef4444;border:none;color:white;padding:6px 12px;border-radius:6px;cursor:pointer;">
+              Delete
+            </button>
+          </form>
+        </td>
+      </tr>
+    `).join("");
+
+    res.send(`
+      <html>
+      <head>
+        <title>AI Leads Dashboard</title>
+        <style>
+          body { background:#0f172a;color:#f1f5f9;font-family:Arial;padding:40px; }
+          table { width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden; }
+          th,td { padding:12px;border-bottom:1px solid #334155; }
+          th { background:#111827; }
+          tr:hover { background:#334155; }
+          input { padding:8px;border-radius:6px;border:none; }
+          .top { display:flex;justify-content:space-between;margin-bottom:20px; }
+          .btn { padding:8px 14px;border-radius:6px;text-decoration:none;color:white; }
+          .export { background:#22c55e; }
+          .logout { background:#475569; }
+        </style>
+      </head>
+      <body>
+
+        <div class="top">
+          <div>
+            <h1>AI Leads Dashboard</h1>
+            <p>Total Leads: ${filtered.length}</p>
+          </div>
+          <div>
+            <a class="btn export" href="/admin/export">Export CSV</a>
+            <a class="btn logout" href="/logout">Logout</a>
+          </div>
+        </div>
+
+        <form method="GET" action="/admin" style="margin-bottom:20px;">
+          <input type="text" name="search" placeholder="Search name or email..." value="${search}">
+          <button style="padding:8px 12px;">Search</button>
+        </form>
+
+        <table>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+          ${rows || "<tr><td colspan='4'>No leads found</td></tr>"}
+        </table>
+
+      </body>
+      </html>
+    `);
+
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    res.status(500).send("Dashboard error");
+  }
+});
+
+/* =====================================
+   CHAT
+===================================== */
 
 app.post("/chat", async (req, res) => {
   try {
     const message = req.body.message?.trim();
+    if (!message) return res.json({ reply: "Please type a message." });
 
-    if (!message) {
-      return res.json({ reply: "Please type a message." });
-    }
-
-    // Lead trigger
     if (!req.session.step && message.toLowerCase().includes("quote")) {
       req.session.step = 1;
       return res.json({ reply: "Great! What's your name?" });
     }
 
-    // Save name
     if (req.session.step === 1) {
       req.session.name = message;
       req.session.step = 2;
       return res.json({ reply: "Nice to meet you! What's your email?" });
     }
 
-    // Save email
     if (req.session.step === 2) {
       if (!isValidEmail(message)) {
-        return res.json({
-          reply: "That doesn't look like a valid email. Try again.",
-        });
+        return res.json({ reply: "Invalid email. Try again." });
       }
 
-      const { error } = await supabase.from("leads").insert([
-        {
-          name: req.session.name,
-          email: message.toLowerCase(),
-        },
+      await supabase.from("leads").insert([
+        { name: req.session.name, email: message.toLowerCase() }
       ]);
 
-      if (error) throw error;
-
       resetSession(req.session);
-
-      return res.json({
-        reply: "Thanks! We'll contact you shortly 😊",
-      });
+      return res.json({ reply: "Thanks! We'll contact you shortly 😊" });
     }
 
-    // Normal AI reply
     const response = await openai.responses.create({
       model: "gpt-4o-mini",
       input: [
-        {
-          role: "system",
-          content:
-            "You are a helpful AI assistant for a business website. Keep responses professional and concise.",
-        },
-        {
-          role: "user",
-          content: message,
-        },
+        { role: "system", content: "You are a professional business assistant." },
+        { role: "user", content: message }
       ],
     });
 
-    res.json({
-      reply: response.output_text,
-    });
+    res.json({ reply: response.output_text });
 
-  } catch (error) {
-    console.error("❌ Chat error:", error);
-    res.json({
-      reply: "Server error. Please try again.",
-    });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.json({ reply: "Server error. Try again." });
   }
 });
 
-/* ===============================
+/* =====================================
    START SERVER
-=============================== */
+===================================== */
 
 app.listen(PORT, () => {
-  console.log(`🚀 Lead chatbot running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
