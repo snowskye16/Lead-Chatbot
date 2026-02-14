@@ -38,6 +38,7 @@ const supabase = createClient(
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(express.static("public"));
 
 app.use(
   session({
@@ -163,14 +164,6 @@ app.post("/chat", async (req, res) => {
       reply: "Server error. Please try again.",
     });
   }
-});
-
-/* ===============================
-   ROOT
-=============================== */
-
-app.get("/", (req, res) => {
-  res.send("🚀 Lead chatbot server is running");
 });
 
 /* ===============================
