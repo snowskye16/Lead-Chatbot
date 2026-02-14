@@ -1,19 +1,43 @@
-<script>
-async function send() {
-  const messageInput = document.getElementById("message");
-  const message = messageInput.value.trim();
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lead Chatbot</title>
+</head>
+<body>
+  <h2>AI Lead Chatbot</h2>
 
-  if (!message) return;
+  <div id="chat"></div>
 
-  const res = await fetch("/chat", {   // ✅ FIXED HERE
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
-  });
+  <input id="message" placeholder="Type message..." />
+  <button onclick="send()">Send</button>
 
-  const data = await res.json();
-  document.getElementById("response").innerText = data.reply;
+  <script>
+    async function send() {
+      const messageInput = document.getElementById("message");
+      const message = messageInput.value.trim();
+      if (!message) return;
 
-  messageInput.value = "";
-}
-</script>
+      const chat = document.getElementById("chat");
+
+      // Show user message
+      chat.innerHTML += "<p><strong>You:</strong> " + message + "</p>";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+
+        chat.innerHTML += "<p><strong>Bot:</strong> " + (data.reply || "No response") + "</p>";
+      } catch (err) {
+        chat.innerHTML += "<p><strong>Error:</strong> Server not responding</p>";
+      }
+
+      messageInput.value = "";
+    }
+  </script>
+</body>
+</html>
