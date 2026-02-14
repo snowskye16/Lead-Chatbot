@@ -1,109 +1,140 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Admin Dashboard - Leads</title>
+  <title>AI Lead Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f4f6f9;
-  margin: 0;
-  padding: 30px;
-}
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-h1 {
-  margin-bottom: 20px;
-}
+    .chat-container {
+      width: 400px;
+      max-width: 95%;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
+    .chat-header {
+      background: #111827;
+      color: white;
+      padding: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
 
-th, td {
-  padding: 12px 15px;
-  text-align: left;
-}
+    .chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-th {
-  background: #007bff;
-  color: white;
-}
+    .message {
+      padding: 10px 14px;
+      border-radius: 18px;
+      max-width: 75%;
+      font-size: 14px;
+    }
 
-tr:nth-child(even) {
-  background: #f2f2f2;
-}
+    .user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+    }
 
-button {
-  background: red;
-  color: white;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-</style>
+    .bot {
+      align-self: flex-start;
+      background: #e5e7eb;
+      color: black;
+    }
+
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #eee;
+    }
+
+    .chat-input input {
+      flex: 1;
+      border: none;
+      padding: 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .chat-input button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      padding: 0 20px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .chat-input button:hover {
+      background: #1e40af;
+    }
+  </style>
 </head>
 <body>
 
-<h1>📊 Lead Dashboard</h1>
+<div class="chat-container">
+  <div class="chat-header">
+    AI Lead Assistant
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Email</th>
-      <th>Date</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody id="leadTable"></tbody>
-</table>
+  <div class="chat-box" id="chat"></div>
+
+  <div class="chat-input">
+    <input id="message" placeholder="Type your message..." />
+    <button onclick="send()">Send</button>
+  </div>
+</div>
 
 <script>
-async function loadLeads() {
-  const response = await fetch("/api/leads");
-  const leads = await response.json();
+async function send() {
+  const input = document.getElementById("message");
+  const message = input.value.trim();
+  if (!message) return;
 
-  const table = document.getElementById("leadTable");
-  table.innerHTML = "";
+  const chat = document.getElementById("chat");
 
-  leads.slice().reverse().forEach((lead, reverseIndex) => {
-    const realIndex = leads.length - 1 - reverseIndex;
+  // Add user message
+  const userMsg = document.createElement("div");
+  userMsg.className = "message user";
+  userMsg.innerText = message;
+  chat.appendChild(userMsg);
 
-    const row = document.createElement("tr");
+  input.value = "";
 
-    row.innerHTML = `
-      <td>${lead.name}</td>
-      <td>${lead.email}</td>
-      <td>${new Date(lead.date).toLocaleString()}</td>
-      <td>
-        <button onclick="deleteLead(${realIndex})">
-          Delete
-        </button>
-      </td>
-    `;
-
-    table.appendChild(row);
-  });
-}
-
-async function deleteLead(index) {
-  if (!confirm("Are you sure you want to delete this lead?")) return;
-
-  await fetch(`/api/leads/${index}`, {
-    method: "DELETE"
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
   });
 
-  loadLeads(); // auto refresh
-}
+  const data = await res.json();
 
-loadLeads();
+  const botMsg = document.createElement("div");
+  botMsg.className = "message bot";
+  botMsg.innerText = data.reply || "No response";
+  chat.appendChild(botMsg);
+
+  chat.scrollTop = chat.scrollHeight;
+}
 </script>
 
 </body>
