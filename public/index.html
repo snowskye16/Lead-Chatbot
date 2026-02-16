@@ -8,8 +8,8 @@
 <style>
 
 body{
-font-family: Arial, sans-serif;
-background:#f4f6fb;
+font-family: Arial;
+background: transparent;
 }
 
 /* Floating button */
@@ -17,44 +17,46 @@ background:#f4f6fb;
 position:fixed;
 bottom:20px;
 right:20px;
-width:65px;
-height:65px;
+width:60px;
+height:60px;
 border-radius:50%;
-background:linear-gradient(135deg,#2563eb,#1e40af);
+background:#2563eb;
 color:white;
 border:none;
 font-size:26px;
 cursor:pointer;
-box-shadow:0 5px 18px rgba(0,0,0,0.3);
+box-shadow:0 4px 15px rgba(0,0,0,0.4);
 z-index:9999;
 }
 
 /* Chat box */
 #chatBox{
 position:fixed;
-bottom:95px;
+bottom:90px;
 right:20px;
-width:360px;
-max-width:95%;
+width:350px;
 height:520px;
 background:#0f172a;
-border-radius:15px;
+border-radius:16px;
 display:none;
 flex-direction:column;
 overflow:hidden;
-box-shadow:0 10px 35px rgba(0,0,0,0.4);
+box-shadow:0 10px 35px rgba(0,0,0,0.5);
 z-index:9999;
-animation:fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn{
-from{opacity:0; transform:translateY(20px);}
-to{opacity:1; transform:translateY(0);}
+/* Mobile */
+@media(max-width:500px){
+#chatBox{
+width:95%;
+right:2.5%;
+height:80vh;
+}
 }
 
 /* Header */
 #header{
-background:linear-gradient(135deg,#2563eb,#1e40af);
+background:#2563eb;
 color:white;
 padding:12px;
 font-weight:bold;
@@ -69,10 +71,16 @@ align-items:center;
 gap:10px;
 }
 
-#logo{
+#avatar{
 width:35px;
 height:35px;
 border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
+color:#2563eb;
 }
 
 #closeBtn{
@@ -85,38 +93,21 @@ font-size:20px;
 flex:1;
 padding:12px;
 overflow-y:auto;
-display:flex;
-flex-direction:column;
-}
-
-/* message container */
-.messageRow{
-display:flex;
-align-items:flex-end;
-margin:6px 0;
-}
-
-.avatar{
-width:28px;
-height:28px;
-border-radius:50%;
-margin-right:6px;
 }
 
 .msg{
-padding:10px;
+margin:8px 0;
+padding:10px 14px;
 border-radius:12px;
-max-width:75%;
+max-width:80%;
 font-size:14px;
-}
-
-.userRow{
-justify-content:flex-end;
+line-height:1.4;
 }
 
 .user{
 background:#2563eb;
 color:white;
+margin-left:auto;
 }
 
 .bot{
@@ -126,11 +117,11 @@ color:white;
 
 /* typing */
 .typing{
-font-style:italic;
 opacity:0.7;
+font-style:italic;
 }
 
-/* input area */
+/* Input */
 #inputArea{
 display:flex;
 border-top:1px solid #1e293b;
@@ -141,12 +132,14 @@ flex:1;
 padding:12px;
 border:none;
 outline:none;
-font-size:14px;
+background:#0f172a;
+color:white;
 }
 
-#mic{
-background:#10b981;
-color:white;
+#send,#mic{
+border:none;
+padding:12px;
+cursor:pointer;
 }
 
 #send{
@@ -154,20 +147,9 @@ background:#2563eb;
 color:white;
 }
 
-button{
-border:none;
-padding:12px;
-cursor:pointer;
-}
-
-/* mobile */
-@media(max-width:500px){
-#chatBox{
-width:95%;
-height:80%;
-right:2.5%;
-bottom:90px;
-}
+#mic{
+background:#10b981;
+color:white;
 }
 
 </style>
@@ -175,36 +157,35 @@ bottom:90px;
 </head>
 <body>
 
-<button id="toggleBtn">❄️</button>
+<button id="toggleBtn">💬</button>
 
 <div id="chatBox">
 
 <div id="header">
 
 <div id="headerLeft">
-<img id="logo" src="logo.png">
-<span>SnowSkye AI</span>
+<div id="avatar">AI</div>
+SnowSkye AI
 </div>
 
-<div id="closeBtn">✖</div>
+<div id="closeBtn">✕</div>
 
 </div>
 
 <div id="messages"></div>
 
 <div id="inputArea">
-<input id="input" placeholder="Ask SnowSkye AI...">
+<input id="input" placeholder="Type your message...">
 <button id="mic">🎤</button>
-<button id="send">➤</button>
+<button id="send">Send</button>
 </div>
 
 </div>
-
 
 <script>
 
-const toggleBtn=document.getElementById("toggleBtn");
 const chatBox=document.getElementById("chatBox");
+const toggleBtn=document.getElementById("toggleBtn");
 const closeBtn=document.getElementById("closeBtn");
 const messages=document.getElementById("messages");
 const input=document.getElementById("input");
@@ -218,38 +199,26 @@ closeBtn.onclick=()=>{
 chatBox.style.display="none";
 };
 
+/* Welcome message */
+setTimeout(()=>{
+addMessage("Hi! I'm SnowSkye AI. How can I help you today?","bot");
+},800);
+
 /* Add message */
 function addMessage(text,type){
 
-const row=document.createElement("div");
-row.className="messageRow";
+const div=document.createElement("div");
+div.className="msg "+type;
+div.innerText=text;
 
-const msg=document.createElement("div");
-msg.className="msg "+type;
-msg.innerText=text;
-
-if(type==="bot"){
-
-const avatar=document.createElement("img");
-avatar.src="logo.png";
-avatar.className="avatar";
-
-row.appendChild(avatar);
-row.appendChild(msg);
-
-}else{
-
-row.classList.add("userRow");
-row.appendChild(msg);
-
-}
-
-messages.appendChild(row);
+messages.appendChild(div);
 messages.scrollTop=messages.scrollHeight;
 
+return div;
+
 }
 
-/* Typing animation */
+/* Typing */
 function showTyping(){
 
 const div=document.createElement("div");
@@ -268,38 +237,105 @@ if(typing) typing.remove();
 
 }
 
-/* Voice */
+/* FAST VOICE */
 function speak(text){
 
-try{
+speechSynthesis.cancel();
+
 const speech=new SpeechSynthesisUtterance(text);
-speech.lang="en-US";
-speech.rate=1;
+
+speech.rate=1.15;
 speech.pitch=1;
+speech.lang="en-US";
+
 speechSynthesis.speak(speech);
-}catch{}
 
 }
 
-/* Backup replies */
-function backupReply(userMessage){
+/* STREAMING */
+async function streamReply(text){
 
-const msg=userMessage.toLowerCase();
+const botMsg=addMessage("","bot");
 
-if(msg.includes("price"))
-return "Our pricing depends on your needs. Please contact support.";
+try{
 
-if(msg.includes("hello"))
-return "Hello! How can I help you today?";
+const res=await fetch("/chat-stream",{
 
-if(msg.includes("help"))
-return "SnowSkye AI is ready to assist you.";
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({message:text})
 
-return "SnowSkye AI is currently busy. Please try again shortly.";
+});
+
+if(!res.body) throw "No stream";
+
+const reader=res.body.getReader();
+const decoder=new TextDecoder();
+
+let full="";
+
+while(true){
+
+const {done,value}=await reader.read();
+
+if(done) break;
+
+const chunk=decoder.decode(value);
+
+full+=chunk;
+
+botMsg.innerText=full;
+
+messages.scrollTop=messages.scrollHeight;
 
 }
 
-/* Send message */
+speak(full);
+
+}catch{
+
+fallbackReply(text);
+
+}
+
+}
+
+/* FALLBACK */
+async function fallbackReply(text){
+
+try{
+
+const res=await fetch("/chat",{
+
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({message:text})
+
+});
+
+const data=await res.json();
+
+addMessage(data.reply,"bot");
+
+speak(data.reply);
+
+}catch{
+
+const backup="I'm currently offline, but please leave your message.";
+
+addMessage(backup,"bot");
+
+speak(backup);
+
+}
+
+}
+
+/* Send */
 async function sendMessage(){
 
 const text=input.value.trim();
@@ -312,63 +348,15 @@ input.value="";
 
 showTyping();
 
-try{
-
-const controller=new AbortController();
-
-const timeout=setTimeout(()=>{
-controller.abort();
-},10000);
-
-const res=await fetch("/chat",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({
-message:text
-}),
-
-signal:controller.signal
-
-});
-
-clearTimeout(timeout);
-
-const data=await res.json();
-
 removeTyping();
 
-if(data.reply){
-
-addMessage(data.reply,"bot");
-speak(data.reply);
-
-}else{
-
-throw new Error("No reply");
+streamReply(text);
 
 }
 
-}catch(error){
-
-removeTyping();
-
-const fallback=backupReply(text);
-
-addMessage(fallback,"bot");
-
-}
-
-}
-
-/* Buttons */
 document.getElementById("send").onclick=sendMessage;
 
-input.addEventListener("keypress",function(e){
+input.addEventListener("keypress",(e)=>{
 if(e.key==="Enter") sendMessage();
 });
 
@@ -379,23 +367,15 @@ const SpeechRecognition=
 window.SpeechRecognition ||
 window.webkitSpeechRecognition;
 
-if(!SpeechRecognition){
-alert("Voice not supported");
-return;
-}
-
 const recognition=new SpeechRecognition();
 
 recognition.lang="en-US";
 
 recognition.start();
 
-recognition.onresult=(event)=>{
-
-input.value=event.results[0][0].transcript;
-
+recognition.onresult=(e)=>{
+input.value=e.results[0][0].transcript;
 sendMessage();
-
 };
 
 };
