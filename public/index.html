@@ -2,14 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SnowSkye AI</title>
 
 <style>
 
 body{
 font-family: Arial;
-background: transparent;
+background:#f4f6fb;
 }
 
 /* Floating button */
@@ -23,10 +22,9 @@ border-radius:50%;
 background:#2563eb;
 color:white;
 border:none;
-font-size:26px;
+font-size:24px;
 cursor:pointer;
-box-shadow:0 4px 15px rgba(0,0,0,0.4);
-z-index:9999;
+box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
 
 /* Chat box */
@@ -35,23 +33,13 @@ position:fixed;
 bottom:90px;
 right:20px;
 width:350px;
-height:520px;
+height:500px;
 background:#0f172a;
-border-radius:16px;
+border-radius:12px;
 display:none;
 flex-direction:column;
 overflow:hidden;
-box-shadow:0 10px 35px rgba(0,0,0,0.5);
-z-index:9999;
-}
-
-/* Mobile */
-@media(max-width:500px){
-#chatBox{
-width:95%;
-right:2.5%;
-height:80vh;
-}
+box-shadow:0 8px 25px rgba(0,0,0,0.3);
 }
 
 /* Header */
@@ -62,46 +50,27 @@ padding:12px;
 font-weight:bold;
 display:flex;
 align-items:center;
-justify-content:space-between;
-}
-
-#headerLeft{
-display:flex;
-align-items:center;
 gap:10px;
 }
 
-#avatar{
-width:35px;
-height:35px;
+#logo{
+width:30px;
+height:30px;
 border-radius:50%;
-background:white;
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:bold;
-color:#2563eb;
-}
-
-#closeBtn{
-cursor:pointer;
-font-size:20px;
 }
 
 /* Messages */
 #messages{
 flex:1;
-padding:12px;
+padding:10px;
 overflow-y:auto;
 }
 
 .msg{
 margin:8px 0;
-padding:10px 14px;
-border-radius:12px;
+padding:10px;
+border-radius:10px;
 max-width:80%;
-font-size:14px;
-line-height:1.4;
 }
 
 .user{
@@ -117,38 +86,35 @@ color:white;
 
 /* typing */
 .typing{
-opacity:0.7;
 font-style:italic;
+opacity:0.7;
 }
 
-/* Input */
+/* input area */
 #inputArea{
 display:flex;
-border-top:1px solid #1e293b;
 }
 
 #input{
 flex:1;
-padding:12px;
+padding:10px;
 border:none;
 outline:none;
-background:#0f172a;
-color:white;
 }
 
-#send,#mic{
+button{
 border:none;
-padding:12px;
+padding:10px;
 cursor:pointer;
-}
-
-#send{
-background:#2563eb;
-color:white;
 }
 
 #mic{
 background:#10b981;
+color:white;
+}
+
+#send{
+background:#2563eb;
 color:white;
 }
 
@@ -157,54 +123,43 @@ color:white;
 </head>
 <body>
 
+
 <button id="toggleBtn">💬</button>
+
 
 <div id="chatBox">
 
 <div id="header">
-
-<div id="headerLeft">
-<div id="avatar">AI</div>
+<img id="logo" src="logo.png">
 SnowSkye AI
-</div>
-
-<div id="closeBtn">✕</div>
-
 </div>
 
 <div id="messages"></div>
 
 <div id="inputArea">
-<input id="input" placeholder="Type your message...">
+<input id="input" placeholder="Type message...">
 <button id="mic">🎤</button>
 <button id="send">Send</button>
 </div>
 
 </div>
 
+
 <script>
 
-const chatBox=document.getElementById("chatBox");
 const toggleBtn=document.getElementById("toggleBtn");
-const closeBtn=document.getElementById("closeBtn");
+const chatBox=document.getElementById("chatBox");
 const messages=document.getElementById("messages");
 const input=document.getElementById("input");
 
-/* Toggle */
 toggleBtn.onclick=()=>{
+chatBox.style.display=
+chatBox.style.display==="flex"?"none":"flex";
 chatBox.style.display="flex";
 };
 
-closeBtn.onclick=()=>{
-chatBox.style.display="none";
-};
 
-/* Welcome message */
-setTimeout(()=>{
-addMessage("Hi! I'm SnowSkye AI. How can I help you today?","bot");
-},800);
-
-/* Add message */
+// Add message
 function addMessage(text,type){
 
 const div=document.createElement("div");
@@ -214,11 +169,10 @@ div.innerText=text;
 messages.appendChild(div);
 messages.scrollTop=messages.scrollHeight;
 
-return div;
-
 }
 
-/* Typing */
+
+// typing animation
 function showTyping(){
 
 const div=document.createElement("div");
@@ -228,8 +182,12 @@ div.innerText="SnowSkye AI is typing...";
 
 messages.appendChild(div);
 
+messages.scrollTop=messages.scrollHeight;
+
 }
 
+
+// remove typing
 function removeTyping(){
 
 const typing=document.getElementById("typing");
@@ -237,108 +195,22 @@ if(typing) typing.remove();
 
 }
 
-/* FAST VOICE */
+
+// voice reply FREE
 function speak(text){
 
-speechSynthesis.cancel();
-
 const speech=new SpeechSynthesisUtterance(text);
-
-speech.rate=1.15;
-speech.pitch=1;
 speech.lang="en-US";
 
 speechSynthesis.speak(speech);
 
 }
 
-/* STREAMING */
-async function streamReply(text){
 
-const botMsg=addMessage("","bot");
-
-try{
-
-const res=await fetch("/chat-stream",{
-
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({message:text})
-
-});
-
-if(!res.body) throw "No stream";
-
-const reader=res.body.getReader();
-const decoder=new TextDecoder();
-
-let full="";
-
-while(true){
-
-const {done,value}=await reader.read();
-
-if(done) break;
-
-const chunk=decoder.decode(value);
-
-full+=chunk;
-
-botMsg.innerText=full;
-
-messages.scrollTop=messages.scrollHeight;
-
-}
-
-speak(full);
-
-}catch{
-
-fallbackReply(text);
-
-}
-
-}
-
-/* FALLBACK */
-async function fallbackReply(text){
-
-try{
-
-const res=await fetch("/chat",{
-
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({message:text})
-
-});
-
-const data=await res.json();
-
-addMessage(data.reply,"bot");
-
-speak(data.reply);
-
-}catch{
-
-const backup="I'm currently offline, but please leave your message.";
-
-addMessage(backup,"bot");
-
-speak(backup);
-
-}
-
-}
-
-/* Send */
+// send message
 async function sendMessage(){
 
-const text=input.value.trim();
+const text=input.value;
 
 if(!text) return;
 
@@ -348,19 +220,44 @@ input.value="";
 
 showTyping();
 
+const res=await fetch("/chat",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+message:text
+})
+
+});
+
+const data=await res.json();
+
 removeTyping();
 
-streamReply(text);
+addMessage(data.reply,"bot");
+
+speak(data.reply);
 
 }
 
+
 document.getElementById("send").onclick=sendMessage;
 
-input.addEventListener("keypress",(e)=>{
-if(e.key==="Enter") sendMessage();
+
+// ENTER key
+input.addEventListener("keypress",function(e){
+
+if(e.key==="Enter")
+sendMessage();
+
 });
 
-/* Voice input */
+
+// Voice input FREE
 document.getElementById("mic").onclick=()=>{
 
 const SpeechRecognition=
@@ -373,14 +270,20 @@ recognition.lang="en-US";
 
 recognition.start();
 
-recognition.onresult=(e)=>{
-input.value=e.results[0][0].transcript;
+recognition.onresult=(event)=>{
+
+input.value=
+event.results[0][0].transcript;
+
 sendMessage();
+
 };
 
 };
+
 
 </script>
+
 
 </body>
 </html>
