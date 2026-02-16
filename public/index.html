@@ -9,6 +9,7 @@
 body{
 font-family: Arial;
 background:#f4f6fb;
+margin:0;
 }
 
 /* Floating button */
@@ -25,6 +26,7 @@ border:none;
 font-size:24px;
 cursor:pointer;
 box-shadow:0 4px 12px rgba(0,0,0,0.3);
+z-index:9999;
 }
 
 /* Chat box */
@@ -40,6 +42,25 @@ display:none;
 flex-direction:column;
 overflow:hidden;
 box-shadow:0 8px 25px rgba(0,0,0,0.3);
+z-index:9999;
+}
+
+/* Mobile FULLSCREEN */
+@media (max-width:600px){
+
+#chatBox{
+width:100%;
+height:100%;
+bottom:0;
+right:0;
+border-radius:0;
+}
+
+#toggleBtn{
+bottom:15px;
+right:15px;
+}
+
 }
 
 /* Header */
@@ -47,10 +68,24 @@ box-shadow:0 8px 25px rgba(0,0,0,0.3);
 background:#2563eb;
 color:white;
 padding:12px;
-font-weight:bold;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+#headerLeft{
 display:flex;
 align-items:center;
 gap:10px;
+font-weight:bold;
+}
+
+#closeBtn{
+background:none;
+border:none;
+color:white;
+font-size:22px;
+cursor:pointer;
 }
 
 #logo{
@@ -84,27 +119,28 @@ background:#1e293b;
 color:white;
 }
 
-/* typing */
 .typing{
 font-style:italic;
 opacity:0.7;
 }
 
-/* input area */
+/* Input */
 #inputArea{
 display:flex;
+border-top:1px solid #1e293b;
 }
 
 #input{
 flex:1;
-padding:10px;
+padding:12px;
 border:none;
 outline:none;
+font-size:16px;
 }
 
 button{
 border:none;
-padding:10px;
+padding:12px;
 cursor:pointer;
 }
 
@@ -130,8 +166,14 @@ color:white;
 <div id="chatBox">
 
 <div id="header">
+
+<div id="headerLeft">
 <img id="logo" src="logo.png">
 SnowSkye AI
+</div>
+
+<button id="closeBtn">✕</button>
+
 </div>
 
 <div id="messages"></div>
@@ -147,26 +189,43 @@ SnowSkye AI
 
 <script>
 
+// Elements
 const toggleBtn = document.getElementById("toggleBtn");
 const chatBox = document.getElementById("chatBox");
+const closeBtn = document.getElementById("closeBtn");
 const messages = document.getElementById("messages");
 const input = document.getElementById("input");
 
 let welcomed = false;
 
 
-// Toggle chat open/close
+// Toggle open
 toggleBtn.onclick = () => {
 
-chatBox.style.display =
-chatBox.style.display === "flex" ? "none" : "flex";
+if(chatBox.style.display === "flex"){
 
-if(chatBox.style.display === "flex" && !welcomed){
+chatBox.style.display = "none";
+
+}else{
+
+chatBox.style.display = "flex";
+
+if(!welcomed){
 
 welcomeMessage();
 welcomed = true;
 
 }
+
+}
+
+};
+
+
+// Close button
+closeBtn.onclick = () => {
+
+chatBox.style.display = "none";
 
 };
 
@@ -182,7 +241,7 @@ addMessage(
 );
 
 speak(
-"Hello. I'm SnowSkye AI. How can I help you today?"
+"Hello. I'm SnowSkye AI. How can I help you today."
 );
 
 },500);
@@ -190,7 +249,7 @@ speak(
 }
 
 
-// Add message to UI
+// Add message
 function addMessage(text,type){
 
 const div = document.createElement("div");
@@ -206,7 +265,7 @@ messages.scrollTop = messages.scrollHeight;
 }
 
 
-// typing animation
+// Typing animation
 function showTyping(){
 
 const div = document.createElement("div");
@@ -224,7 +283,6 @@ messages.scrollTop = messages.scrollHeight;
 }
 
 
-// remove typing
 function removeTyping(){
 
 const typing = document.getElementById("typing");
@@ -234,28 +292,41 @@ if(typing) typing.remove();
 }
 
 
-// Natural voice
+// SAME CONSISTENT VOICE
+let selectedVoice = null;
+
+function loadVoice(){
+
+const voices = speechSynthesis.getVoices();
+
+selectedVoice =
+voices.find(v => v.name === "Google US English") ||
+voices.find(v => v.name === "Jenny") ||
+voices.find(v => v.name === "Samantha") ||
+voices.find(v => v.lang === "en-US") ||
+voices[0];
+
+}
+
+speechSynthesis.onvoiceschanged = loadVoice;
+
+loadVoice();
+
+
+// Speak
 function speak(text){
 
 speechSynthesis.cancel();
 
 const speech = new SpeechSynthesisUtterance(text);
 
+speech.voice = selectedVoice;
+
 speech.lang = "en-US";
-speech.rate = 0.95;
-speech.pitch = 1;
+
+speech.rate = 1.02;
+speech.pitch = 1.2;
 speech.volume = 1;
-
-const voices = speechSynthesis.getVoices();
-
-const preferredVoice =
-voices.find(v => v.name.includes("Google US English")) ||
-voices.find(v => v.name.includes("Samantha")) ||
-voices.find(v => v.name.includes("Jenny")) ||
-voices[0];
-
-if(preferredVoice)
-speech.voice = preferredVoice;
 
 speechSynthesis.speak(speech);
 
@@ -266,7 +337,7 @@ speechSynthesis.speak(speech);
 function backupReply(){
 
 const reply =
-"I'm sorry, I'm having trouble responding right now. Please try again in a moment.";
+"I'm sorry, I'm having trouble responding right now. Please try again.";
 
 addMessage(reply,"bot");
 
@@ -275,7 +346,7 @@ speak(reply);
 }
 
 
-// Send message to backend
+// Send message
 async function sendMessage(){
 
 const text = input.value.trim();
@@ -302,11 +373,9 @@ headers:{
 "Content-Type":"application/json"
 },
 
-body:JSON.stringify({
-message:text
-}),
+body:JSON.stringify({ message:text }),
 
-signal: controller.signal
+signal:controller.signal
 
 });
 
@@ -328,7 +397,7 @@ addMessage(data.reply,"bot");
 speak(data.reply);
 
 }
-catch(error){
+catch{
 
 removeTyping();
 
@@ -343,8 +412,8 @@ backupReply();
 document.getElementById("send").onclick = sendMessage;
 
 
-// Enter key support
-input.addEventListener("keypress",function(e){
+// Enter key
+input.addEventListener("keypress",(e)=>{
 
 if(e.key==="Enter")
 sendMessage();
@@ -361,7 +430,7 @@ window.webkitSpeechRecognition;
 
 if(!SpeechRecognition){
 
-alert("Voice recognition not supported in this browser");
+alert("Voice recognition not supported");
 
 return;
 
@@ -385,7 +454,6 @@ sendMessage();
 };
 
 </script>
-
 
 </body>
 </html>
