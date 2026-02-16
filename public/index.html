@@ -2,12 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SnowSkye AI</title>
 
 <style>
 
 body{
-font-family: Arial;
+font-family: Arial, sans-serif;
 background:#f4f6fb;
 }
 
@@ -16,67 +17,106 @@ background:#f4f6fb;
 position:fixed;
 bottom:20px;
 right:20px;
-width:60px;
-height:60px;
+width:65px;
+height:65px;
 border-radius:50%;
-background:#2563eb;
+background:linear-gradient(135deg,#2563eb,#1e40af);
 color:white;
 border:none;
-font-size:24px;
+font-size:26px;
 cursor:pointer;
-box-shadow:0 4px 12px rgba(0,0,0,0.3);
+box-shadow:0 5px 18px rgba(0,0,0,0.3);
+z-index:9999;
 }
 
 /* Chat box */
 #chatBox{
 position:fixed;
-bottom:90px;
+bottom:95px;
 right:20px;
-width:350px;
-height:500px;
+width:360px;
+max-width:95%;
+height:520px;
 background:#0f172a;
-border-radius:12px;
+border-radius:15px;
 display:none;
 flex-direction:column;
 overflow:hidden;
-box-shadow:0 8px 25px rgba(0,0,0,0.3);
+box-shadow:0 10px 35px rgba(0,0,0,0.4);
+z-index:9999;
+animation:fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(20px);}
+to{opacity:1; transform:translateY(0);}
 }
 
 /* Header */
 #header{
-background:#2563eb;
+background:linear-gradient(135deg,#2563eb,#1e40af);
 color:white;
 padding:12px;
 font-weight:bold;
+display:flex;
+align-items:center;
+justify-content:space-between;
+}
+
+#headerLeft{
 display:flex;
 align-items:center;
 gap:10px;
 }
 
 #logo{
-width:30px;
-height:30px;
+width:35px;
+height:35px;
 border-radius:50%;
+}
+
+#closeBtn{
+cursor:pointer;
+font-size:20px;
 }
 
 /* Messages */
 #messages{
 flex:1;
-padding:10px;
+padding:12px;
 overflow-y:auto;
+display:flex;
+flex-direction:column;
+}
+
+/* message container */
+.messageRow{
+display:flex;
+align-items:flex-end;
+margin:6px 0;
+}
+
+.avatar{
+width:28px;
+height:28px;
+border-radius:50%;
+margin-right:6px;
 }
 
 .msg{
-margin:8px 0;
 padding:10px;
-border-radius:10px;
-max-width:80%;
+border-radius:12px;
+max-width:75%;
+font-size:14px;
+}
+
+.userRow{
+justify-content:flex-end;
 }
 
 .user{
 background:#2563eb;
 color:white;
-margin-left:auto;
 }
 
 .bot{
@@ -93,19 +133,15 @@ opacity:0.7;
 /* input area */
 #inputArea{
 display:flex;
+border-top:1px solid #1e293b;
 }
 
 #input{
 flex:1;
-padding:10px;
+padding:12px;
 border:none;
 outline:none;
-}
-
-button{
-border:none;
-padding:10px;
-cursor:pointer;
+font-size:14px;
 }
 
 #mic{
@@ -118,28 +154,48 @@ background:#2563eb;
 color:white;
 }
 
+button{
+border:none;
+padding:12px;
+cursor:pointer;
+}
+
+/* mobile */
+@media(max-width:500px){
+#chatBox{
+width:95%;
+height:80%;
+right:2.5%;
+bottom:90px;
+}
+}
+
 </style>
 
 </head>
 <body>
 
-
-<button id="toggleBtn">💬</button>
-
+<button id="toggleBtn">❄️</button>
 
 <div id="chatBox">
 
 <div id="header">
+
+<div id="headerLeft">
 <img id="logo" src="logo.png">
-SnowSkye AI
+<span>SnowSkye AI</span>
+</div>
+
+<div id="closeBtn">✖</div>
+
 </div>
 
 <div id="messages"></div>
 
 <div id="inputArea">
-<input id="input" placeholder="Type message...">
+<input id="input" placeholder="Ask SnowSkye AI...">
 <button id="mic">🎤</button>
-<button id="send">Send</button>
+<button id="send">➤</button>
 </div>
 
 </div>
@@ -149,30 +205,51 @@ SnowSkye AI
 
 const toggleBtn=document.getElementById("toggleBtn");
 const chatBox=document.getElementById("chatBox");
+const closeBtn=document.getElementById("closeBtn");
 const messages=document.getElementById("messages");
 const input=document.getElementById("input");
 
+/* Toggle */
 toggleBtn.onclick=()=>{
-chatBox.style.display=
-chatBox.style.display==="flex"?"none":"flex";
 chatBox.style.display="flex";
 };
 
+closeBtn.onclick=()=>{
+chatBox.style.display="none";
+};
 
-// Add message
+/* Add message */
 function addMessage(text,type){
 
-const div=document.createElement("div");
-div.className="msg "+type;
-div.innerText=text;
+const row=document.createElement("div");
+row.className="messageRow";
 
-messages.appendChild(div);
+const msg=document.createElement("div");
+msg.className="msg "+type;
+msg.innerText=text;
+
+if(type==="bot"){
+
+const avatar=document.createElement("img");
+avatar.src="logo.png";
+avatar.className="avatar";
+
+row.appendChild(avatar);
+row.appendChild(msg);
+
+}else{
+
+row.classList.add("userRow");
+row.appendChild(msg);
+
+}
+
+messages.appendChild(row);
 messages.scrollTop=messages.scrollHeight;
 
 }
 
-
-// typing animation
+/* Typing animation */
 function showTyping(){
 
 const div=document.createElement("div");
@@ -182,12 +259,8 @@ div.innerText="SnowSkye AI is typing...";
 
 messages.appendChild(div);
 
-messages.scrollTop=messages.scrollHeight;
-
 }
 
-
-// remove typing
 function removeTyping(){
 
 const typing=document.getElementById("typing");
@@ -195,22 +268,41 @@ if(typing) typing.remove();
 
 }
 
-
-// voice reply FREE
+/* Voice */
 function speak(text){
 
+try{
 const speech=new SpeechSynthesisUtterance(text);
 speech.lang="en-US";
-
+speech.rate=1;
+speech.pitch=1;
 speechSynthesis.speak(speech);
+}catch{}
 
 }
 
+/* Backup replies */
+function backupReply(userMessage){
 
-// send message
+const msg=userMessage.toLowerCase();
+
+if(msg.includes("price"))
+return "Our pricing depends on your needs. Please contact support.";
+
+if(msg.includes("hello"))
+return "Hello! How can I help you today?";
+
+if(msg.includes("help"))
+return "SnowSkye AI is ready to assist you.";
+
+return "SnowSkye AI is currently busy. Please try again shortly.";
+
+}
+
+/* Send message */
 async function sendMessage(){
 
-const text=input.value;
+const text=input.value.trim();
 
 if(!text) return;
 
@@ -219,6 +311,14 @@ addMessage(text,"user");
 input.value="";
 
 showTyping();
+
+try{
+
+const controller=new AbortController();
+
+const timeout=setTimeout(()=>{
+controller.abort();
+},10000);
 
 const res=await fetch("/chat",{
 
@@ -230,39 +330,59 @@ headers:{
 
 body:JSON.stringify({
 message:text
-})
+}),
+
+signal:controller.signal
 
 });
+
+clearTimeout(timeout);
 
 const data=await res.json();
 
 removeTyping();
 
-addMessage(data.reply,"bot");
+if(data.reply){
 
+addMessage(data.reply,"bot");
 speak(data.reply);
+
+}else{
+
+throw new Error("No reply");
 
 }
 
+}catch(error){
 
+removeTyping();
+
+const fallback=backupReply(text);
+
+addMessage(fallback,"bot");
+
+}
+
+}
+
+/* Buttons */
 document.getElementById("send").onclick=sendMessage;
 
-
-// ENTER key
 input.addEventListener("keypress",function(e){
-
-if(e.key==="Enter")
-sendMessage();
-
+if(e.key==="Enter") sendMessage();
 });
 
-
-// Voice input FREE
+/* Voice input */
 document.getElementById("mic").onclick=()=>{
 
 const SpeechRecognition=
 window.SpeechRecognition ||
 window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+alert("Voice not supported");
+return;
+}
 
 const recognition=new SpeechRecognition();
 
@@ -272,8 +392,7 @@ recognition.start();
 
 recognition.onresult=(event)=>{
 
-input.value=
-event.results[0][0].transcript;
+input.value=event.results[0][0].transcript;
 
 sendMessage();
 
@@ -281,9 +400,7 @@ sendMessage();
 
 };
 
-
 </script>
-
 
 </body>
 </html>
