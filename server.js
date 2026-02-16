@@ -1,4 +1,4 @@
-console.log("🔥 PRODUCTION SERVER LOADED 🔥");
+console.log("🔥 SNOWSKYE AI PRODUCTION SERVER LOADED 🔥");
 
 require("dotenv").config();
 
@@ -9,34 +9,61 @@ const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 
 /* =====================================
-   CONFIG VALIDATION
+   VALIDATION
 ===================================== */
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error("Missing OPENAI_API_KEY in environment");
-}
+if (!process.env.OPENAI_API_KEY)
+  throw new Error("Missing OPENAI_API_KEY");
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-  throw new Error("Missing Supabase credentials in environment");
-}
+if (!process.env.SUPABASE_URL)
+  throw new Error("Missing SUPABASE_URL");
 
-if (!process.env.SESSION_SECRET) {
-  throw new Error("Missing SESSION_SECRET in environment");
-}
+if (!process.env.SUPABASE_ANON_KEY)
+  throw new Error("Missing SUPABASE_ANON_KEY");
+
+if (!process.env.SESSION_SECRET)
+  throw new Error("Missing SESSION_SECRET");
+
+if (!process.env.ADMIN_PASSWORD)
+  throw new Error("Missing ADMIN_PASSWORD");
 
 /* =====================================
-   APP SETUP
+   SETUP
 ===================================== */
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.set("trust proxy", 1);
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
+
+app.use(session({
+  name: "snowskye-ai-session",
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 1000 * 60 * 60 * 24
+  }
+}));
 
 /* =====================================
    SERVICES
 ===================================== */
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 const supabase = createClient(
@@ -45,301 +72,228 @@ const supabase = createClient(
 );
 
 /* =====================================
-   MIDDLEWARE
-===================================== */
-
-app.set("trust proxy", 1);
-
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
-
-app.use(
-  session({
-    name: "ai-leads-session",
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    },
-  })
-);
-
-/* =====================================
    HELPERS
 ===================================== */
 
 function isValidEmail(email) {
-  if (!email) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim().toLowerCase());
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function resetChatSession(sess) {
-  sess.step = null;
-  sess.name = null;
+function resetLeadSession(sess) {
+  sess.leadStep = null;
+  sess.leadData = null;
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.session?.isAdmin) {
+  if (!req.session.isAdmin)
     return res.redirect("/login");
-  }
+
   next();
-}
-
-function escapeHTML(str = "") {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function escapeCSV(value = "") {
-  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
 /* =====================================
    TEST ROUTE
 ===================================== */
 
-app.get("/api/test", (_, res) => {
-  res.json({ message: "Backend is working 🚀" });
-});
-
-/* =====================================
-   AUTH ROUTES
-===================================== */
-
-app.get("/login", (_, res) => {
-  res.send(`
-    <html>
-      <body style="font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:white;">
-        <form method="POST" action="/login" style="background:#1e293b;padding:40px;border-radius:12px;">
-          <h2>Admin Login</h2>
-          <input type="password" name="password" placeholder="Password" required 
-            style="padding:10px;width:100%;margin:15px 0;border:none;border-radius:6px;">
-          <button style="padding:10px 20px;background:#2563eb;border:none;color:white;border-radius:6px;">
-            Login
-          </button>
-        </form>
-      </body>
-    </html>
-  `);
-});
-
-app.post("/login", (req, res) => {
-  const { password } = req.body;
-
-  if (password === process.env.ADMIN_PASSWORD) {
-    req.session.isAdmin = true;
-    return res.redirect("/admin");
-  }
-
-  res.status(401).send("Invalid password");
-});
-
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/login");
+app.get("/api/test", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Snowskye AI backend running"
   });
 });
 
 /* =====================================
-   ADMIN ROUTES
+   ADMIN LOGIN
 ===================================== */
 
-// Dashboard
-app.get("/admin", requireAdmin, async (req, res) => {
-  try {
-    const search = req.query.search?.toLowerCase() || "";
+app.get("/login", (req, res) => {
 
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
+  res.send(`
+  <html>
+  <body style="font-family:Arial;background:#0f172a;color:white;display:flex;justify-content:center;align-items:center;height:100vh;">
 
-    if (error) throw error;
+  <form method="POST" action="/login" style="background:#1e293b;padding:40px;border-radius:12px;">
 
-    const filtered = data.filter(l =>
-      l.name?.toLowerCase().includes(search) ||
-      l.email?.toLowerCase().includes(search)
-    );
+  <h2>Snowskye Admin Login</h2>
 
-    const rows = filtered.map(l => `
-      <tr>
-        <td>${escapeHTML(l.name || "-")}</td>
-        <td>${escapeHTML(l.email || "-")}</td>
-        <td>${new Date(l.created_at).toLocaleString()}</td>
-        <td>
-          <form method="POST" action="/admin/delete/${l.id}">
-            <button style="background:#ef4444;border:none;color:white;padding:6px 12px;border-radius:6px;cursor:pointer;">
-              Delete
-            </button>
-          </form>
-        </td>
-      </tr>
-    `).join("");
+  <input
+    name="password"
+    type="password"
+    placeholder="Password"
+    style="padding:10px;width:100%;margin:10px 0;border-radius:6px;border:none;"
+  />
 
-    res.send(`
-      <html>
-      <head>
-        <title>AI Leads Dashboard</title>
-        <style>
-          body { background:#0f172a;color:#f1f5f9;font-family:Arial;padding:40px; }
-          table { width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden; }
-          th,td { padding:12px;border-bottom:1px solid #334155; }
-          th { background:#111827; }
-          tr:hover { background:#334155; }
-          input { padding:8px;border-radius:6px;border:none; }
-          .top { display:flex;justify-content:space-between;margin-bottom:20px; }
-          .btn { padding:8px 14px;border-radius:6px;text-decoration:none;color:white; }
-          .export { background:#22c55e; }
-          .logout { background:#475569; }
-        </style>
-      </head>
-      <body>
+  <button style="padding:10px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;">
+  Login
+  </button>
 
-        <div class="top">
-          <div>
-            <h1>AI Leads Dashboard</h1>
-            <p>Total Leads: ${filtered.length}</p>
-          </div>
-          <div>
-            <a class="btn export" href="/admin/export">Export CSV</a>
-            <a class="btn logout" href="/logout">Logout</a>
-          </div>
-        </div>
+  </form>
 
-        <form method="GET" action="/admin" style="margin-bottom:20px;">
-          <input type="text" name="search" placeholder="Search name or email..." value="${escapeHTML(search)}">
-          <button style="padding:8px 12px;">Search</button>
-        </form>
+  </body>
+  </html>
+  `);
 
-        <table>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-          ${rows || "<tr><td colspan='4'>No leads found</td></tr>"}
-        </table>
-
-      </body>
-      </html>
-    `);
-
-  } catch (err) {
-    console.error("Dashboard error:", err);
-    res.status(500).send("Dashboard error");
-  }
 });
 
-// Delete Lead
-app.post("/admin/delete/:id", requireAdmin, async (req, res) => {
-  try {
-    const { error } = await supabase
-      .from("leads")
-      .delete()
-      .eq("id", req.params.id);
+app.post("/login", (req, res) => {
 
-    if (error) throw error;
-
-    res.redirect("/admin");
-  } catch (err) {
-    console.error("Delete error:", err);
-    res.redirect("/admin");
+  if (req.body.password === process.env.ADMIN_PASSWORD) {
+    req.session.isAdmin = true;
+    return res.redirect("/admin");
   }
+
+  res.send("Wrong password");
+
 });
 
-// Export CSV
-app.get("/admin/export", requireAdmin, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    const csv = [
-      ["Name", "Email", "Date"].join(","),
-      ...data.map(l => [
-        escapeCSV(l.name),
-        escapeCSV(l.email),
-        escapeCSV(new Date(l.created_at).toLocaleString())
-      ].join(","))
-    ].join("\n");
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=leads.csv");
-    res.status(200).send(csv);
-
-  } catch (err) {
-    console.error("Export error:", err);
-    res.status(500).send("Export failed");
-  }
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => res.redirect("/login"));
 });
 
 /* =====================================
-   CHAT
+   ADMIN DASHBOARD
+===================================== */
+
+app.get("/admin", requireAdmin, async (req, res) => {
+
+  const { data } = await supabase
+    .from("leads")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const rows = data.map(lead => `
+    <tr>
+      <td>${lead.name || "-"}</td>
+      <td>${lead.email || "-"}</td>
+      <td>${lead.checkin || "-"}</td>
+      <td>${lead.checkout || "-"}</td>
+      <td>${lead.guests || "-"}</td>
+      <td>${lead.created_at}</td>
+    </tr>
+  `).join("");
+
+  res.send(`
+  <html>
+  <body style="background:#0f172a;color:white;font-family:Arial;padding:40px;">
+
+  <h1>Snowskye AI Leads Dashboard</h1>
+
+  <a href="/logout">Logout</a>
+
+  <table border="1" cellpadding="10" style="margin-top:20px;width:100%;">
+  <tr>
+  <th>Name</th>
+  <th>Email</th>
+  <th>Checkin</th>
+  <th>Checkout</th>
+  <th>Guests</th>
+  <th>Date</th>
+  </tr>
+
+  ${rows}
+
+  </table>
+
+  </body>
+  </html>
+  `);
+
+});
+
+/* =====================================
+   CHATBOT LOGIC
 ===================================== */
 
 app.post("/chat", async (req, res) => {
   try {
-    const message = req.body.message?.trim();
-    if (!message) {
-      return res.json({ reply: "Please type a message." });
+    const userMessage = req.body.message;
+    const userId = req.body.userId || "default";
+
+    if (!userMessage) {
+      return res.status(400).json({ reply: "No message provided." });
     }
 
-    if (!req.session.step && message.toLowerCase().includes("quote")) {
-      req.session.step = 1;
-      return res.json({ reply: "Great! What's your name?" });
+    // Check if user exists
+    let { data: lead, error } = await supabase
+      .from("leads")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    // Create new lead if not exists
+    if (!lead) {
+      const { data: newLead } = await supabase
+        .from("leads")
+        .insert([
+          {
+            user_id: userId,
+            stage: "ask_name",
+          },
+        ])
+        .select()
+        .single();
+
+      return res.json({
+        reply: "Hi! Welcome 👋 What is your name?",
+      });
     }
 
-    if (req.session.step === 1) {
-      req.session.name = message;
-      req.session.step = 2;
-      return res.json({ reply: "Nice to meet you! What's your email?" });
+    // LEAD CAPTURE FLOW
+    if (lead.stage === "ask_name") {
+      await supabase
+        .from("leads")
+        .update({
+          name: userMessage,
+          stage: "ask_phone",
+        })
+        .eq("user_id", userId);
+
+      return res.json({
+        reply: `Nice to meet you, ${userMessage}! What is your phone number?`,
+      });
     }
 
-    if (req.session.step === 2) {
-      if (!isValidEmail(message)) {
-        return res.json({ reply: "Invalid email. Try again." });
-      }
+    if (lead.stage === "ask_phone") {
+      await supabase
+        .from("leads")
+        .update({
+          phone: userMessage,
+          stage: "completed",
+        })
+        .eq("user_id", userId);
 
-      await supabase.from("leads").insert([
-        {
-          name: req.session.name,
-          email: message.toLowerCase(),
-        },
-      ]);
-
-      resetChatSession(req.session);
-      return res.json({ reply: "Thanks! We'll contact you shortly 😊" });
+      return res.json({
+        reply:
+          "Thank you! Our team will contact you shortly. How can I help you today?",
+      });
     }
 
-    const response = await openai.responses.create({
+    // NORMAL AI RESPONSE AFTER LEAD CAPTURE
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      input: [
-        { role: "system", content: "You are a professional business assistant." },
-        { role: "user", content: message }
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a professional AI assistant for a dental clinic. Help users book appointments and answer questions.",
+        },
+        {
+          role: "user",
+          content: userMessage,
+        },
       ],
     });
 
-    res.json({ reply: response.output_text });
+    const aiReply = completion.choices[0].message.content;
 
-  } catch (err) {
-    console.error("Chat error:", err);
-    res.json({ reply: "Server error. Try again." });
+    res.json({
+      reply: aiReply,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      reply: "Error processing request.",
+    });
   }
 });
 
@@ -348,5 +302,7 @@ app.post("/chat", async (req, res) => {
 ===================================== */
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+
+  console.log("Server running on port", PORT);
+
 });

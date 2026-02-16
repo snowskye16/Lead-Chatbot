@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Lead Assistant</title>
+  <title>Snowskye AI Business Assistant</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
@@ -11,7 +12,6 @@
       background: #f4f6f9;
     }
 
-    /* Floating Button */
     .chat-toggle {
       position: fixed;
       bottom: 20px;
@@ -30,16 +30,15 @@
       z-index: 1000;
     }
 
-    /* Chat Container */
     .chat-container {
       position: fixed;
       bottom: 90px;
       right: 20px;
-      width: 350px;
+      width: 360px;
       max-width: 95%;
-      height: 450px;
+      height: 480px;
       background: white;
-      border-radius: 15px;
+      border-radius: 16px;
       box-shadow: 0 15px 40px rgba(0,0,0,0.2);
       display: flex;
       flex-direction: column;
@@ -62,15 +61,13 @@
       background: #111827;
       color: white;
       padding: 15px;
+      font-weight: bold;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-weight: bold;
     }
 
     .close-btn {
       cursor: pointer;
-      font-size: 18px;
     }
 
     .chat-box {
@@ -129,17 +126,12 @@
       cursor: pointer;
     }
 
-    .chat-input button:hover {
-      background: #1e40af;
-    }
-
-    /* Typing dots */
-    .typing-dots {
-      display: inline-flex;
+    .typing {
+      display: flex;
       gap: 4px;
     }
 
-    .typing-dots span {
+    .typing span {
       width: 6px;
       height: 6px;
       background: #555;
@@ -147,140 +139,152 @@
       animation: bounce 1.3s infinite;
     }
 
-    .typing-dots span:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .typing-dots span:nth-child(3) {
-      animation-delay: 0.4s;
-    }
+    .typing span:nth-child(2){animation-delay:.2s}
+    .typing span:nth-child(3){animation-delay:.4s}
 
     @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
-    }
-
-    /* Mobile */
-    @media (max-width: 480px) {
-      .chat-container {
-        width: 95%;
-        height: 70vh;
-        bottom: 80px;
-        right: 2.5%;
-      }
+      0%,80%,100%{transform:scale(0)}
+      40%{transform:scale(1)}
     }
   </style>
 </head>
+
 <body>
 
 <div class="chat-toggle" onclick="toggleChat()">💬</div>
 
 <div class="chat-container" id="chatContainer">
+
   <div class="chat-header">
-    AI Lead Assistant
+    Snowskye AI Assistant
     <span class="close-btn" onclick="toggleChat()">✖</span>
   </div>
 
   <div class="chat-box" id="chat"></div>
 
   <div class="chat-input">
-    <input id="message" placeholder="Type your message..." />
+    <input id="input" placeholder="Type message..." />
     <button onclick="send()">Send</button>
   </div>
+
 </div>
 
 <script>
-const sound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 
-function toggleChat() {
-  const container = document.getElementById("chatContainer");
-  container.classList.toggle("active");
+let sending = false;
 
-  if (container.classList.contains("active")) {
-    document.getElementById("message").focus();
-  }
+const sound =
+new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+
+function toggleChat(){
+  document.getElementById("chatContainer").classList.toggle("active");
 }
 
-function createMessage(text, type) {
+function addMessage(text,type){
+
   const chat = document.getElementById("chat");
 
   const msg = document.createElement("div");
+
   msg.className = "message " + type;
+
   msg.innerText = text;
 
   chat.appendChild(msg);
-  chat.scrollTo({
-    top: chat.scrollHeight,
-    behavior: "smooth"
-  });
 
-  return msg;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-function showTyping() {
+function showTyping(){
+
   const chat = document.getElementById("chat");
 
   const typing = document.createElement("div");
+
   typing.className = "message bot";
+
   typing.id = "typing";
 
-  typing.innerHTML = `
-    <div class="typing-dots">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-  `;
+  typing.innerHTML =
+  `<div class="typing">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>`;
 
   chat.appendChild(typing);
-  chat.scrollTo({
-    top: chat.scrollHeight,
-    behavior: "smooth"
-  });
+
+  chat.scrollTop = chat.scrollHeight;
 }
 
-async function send() {
-  const input = document.getElementById("message");
-  const message = input.value.trim();
-  if (!message) return;
+function removeTyping(){
 
-  createMessage(message, "user");
+  const t = document.getElementById("typing");
+
+  if(t) t.remove();
+
+}
+
+async function send(){
+
+  if(sending) return;
+
+  const input = document.getElementById("input");
+
+  const text = input.value.trim();
+
+  if(!text) return;
+
+  sending = true;
+
+  addMessage(text,"user");
+
   input.value = "";
 
   showTyping();
 
-  try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
+  try{
+
+    const res = await fetch("/chat",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        message:text
+      })
     });
 
     const data = await res.json();
 
-    document.getElementById("typing")?.remove();
+    removeTyping();
 
-    createMessage(data.reply || "No response", "bot");
+    addMessage(data.reply,"bot");
+
     sound.play();
 
-  } catch (err) {
-    document.getElementById("typing")?.remove();
-    createMessage("⚠️ Something went wrong.", "bot");
+  }catch{
+
+    removeTyping();
+
+    addMessage("Server error","bot");
+
   }
+
+  sending = false;
+
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const input = document.getElementById("message");
-
-  input.addEventListener("keydown", function(e) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      send();
-    }
-  });
-
-  createMessage("Hi! 👋 How can I help you today?", "bot");
+document.getElementById("input")
+.addEventListener("keydown",e=>{
+  if(e.key==="Enter") send();
 });
+
+addMessage(
+"Hi 👋 I'm Snowskye AI Assistant. Type 'book' to make a reservation.",
+"bot"
+);
+
 </script>
 
 </body>
