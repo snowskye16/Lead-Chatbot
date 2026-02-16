@@ -147,27 +147,61 @@ SnowSkye AI
 
 <script>
 
-const toggleBtn=document.getElementById("toggleBtn");
-const chatBox=document.getElementById("chatBox");
-const messages=document.getElementById("messages");
-const input=document.getElementById("input");
+const toggleBtn = document.getElementById("toggleBtn");
+const chatBox = document.getElementById("chatBox");
+const messages = document.getElementById("messages");
+const input = document.getElementById("input");
 
-toggleBtn.onclick=()=>{
-chatBox.style.display=
-chatBox.style.display==="flex"?"none":"flex";
-chatBox.style.display="flex";
+let welcomed = false;
+
+
+// Toggle chat open/close
+toggleBtn.onclick = () => {
+
+chatBox.style.display =
+chatBox.style.display === "flex" ? "none" : "flex";
+
+if(chatBox.style.display === "flex" && !welcomed){
+
+welcomeMessage();
+welcomed = true;
+
+}
+
 };
 
 
-// Add message
+// Welcome message
+function welcomeMessage(){
+
+setTimeout(()=>{
+
+addMessage(
+"Hello 👋 I'm SnowSkye AI. How can I help you today?",
+"bot"
+);
+
+speak(
+"Hello. I'm SnowSkye AI. How can I help you today?"
+);
+
+},500);
+
+}
+
+
+// Add message to UI
 function addMessage(text,type){
 
-const div=document.createElement("div");
-div.className="msg "+type;
-div.innerText=text;
+const div = document.createElement("div");
+
+div.className = "msg " + type;
+
+div.innerText = text;
 
 messages.appendChild(div);
-messages.scrollTop=messages.scrollHeight;
+
+messages.scrollTop = messages.scrollHeight;
 
 }
 
@@ -175,14 +209,17 @@ messages.scrollTop=messages.scrollHeight;
 // typing animation
 function showTyping(){
 
-const div=document.createElement("div");
-div.className="msg bot typing";
-div.id="typing";
-div.innerText="SnowSkye AI is typing...";
+const div = document.createElement("div");
+
+div.className = "msg bot typing";
+
+div.id = "typing";
+
+div.innerText = "SnowSkye AI is typing...";
 
 messages.appendChild(div);
 
-messages.scrollTop=messages.scrollHeight;
+messages.scrollTop = messages.scrollHeight;
 
 }
 
@@ -190,27 +227,58 @@ messages.scrollTop=messages.scrollHeight;
 // remove typing
 function removeTyping(){
 
-const typing=document.getElementById("typing");
+const typing = document.getElementById("typing");
+
 if(typing) typing.remove();
 
 }
 
 
-// voice reply FREE
+// Natural voice
 function speak(text){
 
-const speech=new SpeechSynthesisUtterance(text);
-speech.lang="en-US";
+speechSynthesis.cancel();
+
+const speech = new SpeechSynthesisUtterance(text);
+
+speech.lang = "en-US";
+speech.rate = 0.95;
+speech.pitch = 1;
+speech.volume = 1;
+
+const voices = speechSynthesis.getVoices();
+
+const preferredVoice =
+voices.find(v => v.name.includes("Google US English")) ||
+voices.find(v => v.name.includes("Samantha")) ||
+voices.find(v => v.name.includes("Jenny")) ||
+voices[0];
+
+if(preferredVoice)
+speech.voice = preferredVoice;
 
 speechSynthesis.speak(speech);
 
 }
 
 
-// send message
+// Backup reply
+function backupReply(){
+
+const reply =
+"I'm sorry, I'm having trouble responding right now. Please try again in a moment.";
+
+addMessage(reply,"bot");
+
+speak(reply);
+
+}
+
+
+// Send message to backend
 async function sendMessage(){
 
-const text=input.value;
+const text = input.value.trim();
 
 if(!text) return;
 
@@ -220,7 +288,13 @@ input.value="";
 
 showTyping();
 
-const res=await fetch("/chat",{
+try{
+
+const controller = new AbortController();
+
+const timeout = setTimeout(()=>controller.abort(),10000);
+
+const res = await fetch("/chat",{
 
 method:"POST",
 
@@ -230,25 +304,46 @@ headers:{
 
 body:JSON.stringify({
 message:text
-})
+}),
+
+signal: controller.signal
 
 });
 
-const data=await res.json();
+clearTimeout(timeout);
+
+const data = await res.json();
 
 removeTyping();
+
+if(!data || !data.reply){
+
+backupReply();
+return;
+
+}
 
 addMessage(data.reply,"bot");
 
 speak(data.reply);
 
 }
+catch(error){
+
+removeTyping();
+
+backupReply();
+
+}
+
+}
 
 
-document.getElementById("send").onclick=sendMessage;
+// Send button
+document.getElementById("send").onclick = sendMessage;
 
 
-// ENTER key
+// Enter key support
 input.addEventListener("keypress",function(e){
 
 if(e.key==="Enter")
@@ -257,14 +352,22 @@ sendMessage();
 });
 
 
-// Voice input FREE
-document.getElementById("mic").onclick=()=>{
+// Voice input
+document.getElementById("mic").onclick = ()=>{
 
-const SpeechRecognition=
+const SpeechRecognition =
 window.SpeechRecognition ||
 window.webkitSpeechRecognition;
 
-const recognition=new SpeechRecognition();
+if(!SpeechRecognition){
+
+alert("Voice recognition not supported in this browser");
+
+return;
+
+}
+
+const recognition = new SpeechRecognition();
 
 recognition.lang="en-US";
 
@@ -272,7 +375,7 @@ recognition.start();
 
 recognition.onresult=(event)=>{
 
-input.value=
+input.value =
 event.results[0][0].transcript;
 
 sendMessage();
@@ -280,7 +383,6 @@ sendMessage();
 };
 
 };
-
 
 </script>
 
