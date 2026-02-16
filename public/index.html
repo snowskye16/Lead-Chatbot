@@ -1,13 +1,18 @@
 <script>
 
 // ===============================
-// SNOWSKYE AI FRONTEND FIXED
+// SNOWSKYE AI FULL FRONTEND
+// WITH CHAT HISTORY PERSISTENCE
 // ===============================
 
-// Generate persistent user ID
+
+// ===============================
+// USER ID SYSTEM
+// ===============================
 function getUserId(){
 
-  let userId = localStorage.getItem("snowskye_user_id");
+  let userId =
+    localStorage.getItem("snowskye_user_id");
 
   if(!userId){
 
@@ -17,9 +22,10 @@ function getUserId(){
       "_" +
       Math.random().toString(36).substring(2,10);
 
-    localStorage.setItem("snowskye_user_id",userId);
-
-    console.log("Created new userId:",userId);
+    localStorage.setItem(
+      "snowskye_user_id",
+      userId
+    );
 
   }
 
@@ -29,27 +35,84 @@ function getUserId(){
 
 const userId = getUserId();
 
-let sending = false;
-
-const sound =
-new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
-
 
 // ===============================
-// Toggle Chat
+// CHAT HISTORY SYSTEM
 // ===============================
-function toggleChat(){
+function saveChat(role,text){
 
-  document
-    .getElementById("chatContainer")
-    .classList
-    .toggle("active");
+  let history =
+    JSON.parse(
+      localStorage.getItem("snowskye_chat_history")
+    ) || [];
+
+  history.push({
+    role:role,
+    text:text
+  });
+
+  localStorage.setItem(
+    "snowskye_chat_history",
+    JSON.stringify(history)
+  );
+
+}
+
+
+function loadChat(){
+
+  let history =
+    JSON.parse(
+      localStorage.getItem("snowskye_chat_history")
+    ) || [];
+
+  history.forEach(msg=>{
+
+    addMessage(
+      msg.text,
+      msg.role
+    );
+
+  });
+
+}
+
+
+function clearChat(){
+
+  localStorage.removeItem(
+    "snowskye_chat_history"
+  );
+
+  document.getElementById("chat").innerHTML = "";
 
 }
 
 
 // ===============================
-// Add Message
+// SOUND
+// ===============================
+const sound =
+new Audio(
+"https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
+);
+
+
+// ===============================
+// TOGGLE CHAT
+// ===============================
+function toggleChat(){
+
+  document
+  .getElementById("chatContainer")
+  .classList
+  .toggle("active");
+
+}
+
+
+// ===============================
+// ADD MESSAGE
 // ===============================
 function addMessage(text,type){
 
@@ -62,7 +125,8 @@ function addMessage(text,type){
   msg.className =
     "message " + type;
 
-  msg.innerText = text;
+  msg.innerText =
+    text;
 
   chat.appendChild(msg);
 
@@ -73,7 +137,7 @@ function addMessage(text,type){
 
 
 // ===============================
-// Typing Indicator
+// TYPING INDICATOR
 // ===============================
 function showTyping(){
 
@@ -98,9 +162,6 @@ function showTyping(){
 
   chat.appendChild(typing);
 
-  chat.scrollTop =
-    chat.scrollHeight;
-
 }
 
 
@@ -115,8 +176,10 @@ function removeTyping(){
 
 
 // ===============================
-// Send Message (FIXED)
+// SEND MESSAGE
 // ===============================
+let sending = false;
+
 async function send(){
 
   if(sending) return;
@@ -132,6 +195,8 @@ async function send(){
   sending = true;
 
   addMessage(text,"user");
+
+  saveChat("user",text);
 
   input.value = "";
 
@@ -152,7 +217,7 @@ async function send(){
 
           message:text,
 
-          userId:userId   // ✅ CRITICAL FIX
+          userId:userId
 
         })
 
@@ -164,6 +229,8 @@ async function send(){
     removeTyping();
 
     addMessage(data.reply,"bot");
+
+    saveChat("bot",data.reply);
 
     sound.play();
 
@@ -185,18 +252,32 @@ async function send(){
 // ===============================
 document
 .getElementById("input")
-.addEventListener("keydown",e=>{
-
+.addEventListener(
+"keydown",
+e=>{
   if(e.key==="Enter")
     send();
-
-});
+}
+);
 
 
 // ===============================
-// START SESSION (FIXED)
+// START SESSION OR LOAD HISTORY
 // ===============================
-async function startSession(){
+async function start(){
+
+  let history =
+    localStorage.getItem(
+      "snowskye_chat_history"
+    );
+
+  if(history){
+
+    loadChat();
+
+    return;
+
+  }
 
   showTyping();
 
@@ -215,7 +296,7 @@ async function startSession(){
 
           message:"start",
 
-          userId:userId   // ✅ CRITICAL FIX
+          userId:userId
 
         })
 
@@ -228,12 +309,14 @@ async function startSession(){
 
     addMessage(data.reply,"bot");
 
+    saveChat("bot",data.reply);
+
   }catch{
 
     removeTyping();
 
     addMessage(
-      "Hi 👋 I'm Snowskye AI Assistant.",
+      "Assistant connected.",
       "bot"
     );
 
@@ -242,7 +325,9 @@ async function startSession(){
 }
 
 
-// Start automatically
-startSession();
+// ===============================
+// INITIALIZE
+// ===============================
+start();
 
 </script>
