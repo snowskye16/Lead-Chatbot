@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SnowSkye AI</title>
+
+<style>
+
+body{
+  margin:0;
+  font-family:Arial;
+}
+
+/* FLOAT BUTTON */
+#chatButton{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  width:65px;
+  height:65px;
+  border-radius:50%;
+  background:#2563eb;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  cursor:pointer;
+  box-shadow:0 5px 20px rgba(0,0,0,0.5);
+}
+
+#chatButton img{
+  width:35px;
+}
+
+/* CHAT BOX */
+#chatBox{
+  position:fixed;
+  bottom:95px;
+  right:20px;
+  width:340px;
+  height:450px;
+  background:#1e293b;
+  border-radius:12px;
+  display:none;
+  flex-direction:column;
+}
+
+/* HEADER */
+#header{
+  background:#2563eb;
+  color:white;
+  padding:12px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+#header img{
+  width:30px;
+}
+
+/* MESSAGES */
+#messages{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+}
+
+/* MESSAGE */
+.msg{
+  margin:8px 0;
+  display:flex;
+  gap:6px;
+}
+
+.msg.user{
+  justify-content:flex-end;
+}
+
+.bubble{
+  padding:10px;
+  border-radius:8px;
+  max-width:70%;
+}
+
+.user .bubble{
+  background:#2563eb;
+  color:white;
+}
+
+.bot .bubble{
+  background:#334155;
+  color:white;
+}
+
+/* TYPING */
+.typing{
+  font-style:italic;
+  opacity:0.7;
+}
+
+/* INPUT */
+#inputArea{
+  display:flex;
+  padding:10px;
+}
+
+#input{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:6px;
+}
+
+#send{
+  padding:10px;
+  border:none;
+  background:#2563eb;
+  color:white;
+  border-radius:6px;
+  margin-left:5px;
+}
+
+</style>
+</head>
+<body>
+
+
+<!-- FLOAT -->
+<div id="chatButton" onclick="toggleChat()">
+<img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png">
+</div>
+
+
+<!-- CHAT -->
+<div id="chatBox">
+
+<div id="header">
+<img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png">
+SnowSkye AI Assistant
+</div>
+
+<div id="messages"></div>
+
+<div id="inputArea">
+<input id="input" placeholder="Type message...">
+<button id="send">Send</button>
+</div>
+
+</div>
+
+
+<audio id="sound">
+<source src="https://www.soundjay.com/buttons/sounds/button-3.mp3">
+</audio>
+
+
+<script>
+
+const userId = localStorage.getItem("userId") || "user_"+Date.now();
+localStorage.setItem("userId",userId);
+
+
+// toggle
+function toggleChat(){
+
+const box=document.getElementById("chatBox");
+
+box.style.display=
+box.style.display==="flex"?"none":"flex";
+
+}
+
+
+// add message
+function add(text,type){
+
+const div=document.createElement("div");
+
+div.className="msg "+type;
+
+const bubble=document.createElement("div");
+
+bubble.className="bubble";
+
+bubble.innerText=text;
+
+div.appendChild(bubble);
+
+document.getElementById("messages").appendChild(div);
+
+div.scrollIntoView();
+
+}
+
+
+// typing animation
+function typing(){
+
+const div=document.createElement("div");
+
+div.className="msg bot typing";
+
+div.id="typing";
+
+div.innerHTML="<div class='bubble'>SnowSkye AI is typing...</div>";
+
+document.getElementById("messages").appendChild(div);
+
+}
+
+
+// remove typing
+function removeTyping(){
+
+const t=document.getElementById("typing");
+
+if(t) t.remove();
+
+}
+
+
+// voice reply
+function speak(text){
+
+const speech=new SpeechSynthesisUtterance(text);
+
+speech.rate=1;
+
+speech.pitch=1;
+
+speech.volume=1;
+
+speechSynthesis.speak(speech);
+
+}
+
+
+// play sound
+function sound(){
+
+document.getElementById("sound").play();
+
+}
+
+
+// save conversation
+async function save(message,reply){
+
+await fetch("/save",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+userId,
+message,
+reply
+
+})
+
+});
+
+}
+
+
+// send message
+async function send(){
+
+const input=document.getElementById("input");
+
+const text=input.value;
+
+if(!text) return;
+
+add(text,"user");
+
+input.value="";
+
+typing();
+
+const res=await fetch("/chat",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+message:text,
+userId:userId
+
+})
+
+});
+
+const data=await res.json();
+
+removeTyping();
+
+add(data.reply,"bot");
+
+sound();
+
+speak(data.reply);
+
+save(text,data.reply);
+
+}
+
+
+document.getElementById("send").onclick=send;
+
+
+document.getElementById("input").addEventListener("keypress",function(e){
+
+if(e.key==="Enter") send();
+
+});
+
+</script>
+
+</body>
+</html>

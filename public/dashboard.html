@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>SnowSkye AI Dashboard</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+  font-family:Arial;
+  margin:0;
+  background:#f4f6f9;
+}
+
+
+/* HEADER */
+.header{
+  background:#111827;
+  color:white;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+
+.header button{
+  background:#ef4444;
+}
+
+
+/* CONTAINER */
+.container{
+  padding:20px;
+}
+
+
+/* CARDS */
+.card{
+  background:white;
+  padding:20px;
+  margin-bottom:15px;
+  border-radius:10px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
+
+
+/* INPUT */
+input{
+  padding:10px;
+  width:200px;
+  margin-right:10px;
+  margin-top:5px;
+}
+
+
+/* BUTTON */
+button{
+  background:#2563eb;
+  color:white;
+  border:none;
+  padding:10px 15px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+
+/* LEAD */
+.lead{
+  padding:12px;
+  border-bottom:1px solid #eee;
+}
+
+
+/* STATS */
+.stats{
+  font-size:18px;
+  font-weight:bold;
+  color:#2563eb;
+}
+
+
+/* CHATBOT BUTTON */
+.chatbotBtn{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#2563eb;
+  padding:15px;
+  border-radius:50%;
+  color:white;
+  cursor:pointer;
+  font-size:20px;
+}
+
+
+/* CHAT */
+#chatContainer{
+  position:fixed;
+  bottom:80px;
+  right:20px;
+  width:320px;
+  height:420px;
+  background:white;
+  border-radius:10px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.2);
+  display:none;
+  flex-direction:column;
+}
+
+
+#chat{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+}
+
+
+.message{
+  padding:8px;
+  margin:5px;
+  border-radius:5px;
+}
+
+
+.user{
+  background:#2563eb;
+  color:white;
+}
+
+
+.bot{
+  background:#e5e7eb;
+}
+
+
+#input{
+  border:none;
+  padding:10px;
+  border-top:1px solid #eee;
+}
+
+</style>
+
+</head>
+<body>
+
+
+<!-- HEADER -->
+<div class="header">
+
+  SnowSkye AI Client Dashboard
+
+  <button onclick="logout()">Logout</button>
+
+</div>
+
+
+
+<div class="container">
+
+
+  <!-- STATS -->
+  <div class="card">
+
+    <div class="stats">
+      Total Leads: <span id="leadCount">0</span>
+    </div>
+
+  </div>
+
+
+
+  <!-- ADD LEAD -->
+  <div class="card">
+
+    <h3>Add Lead</h3>
+
+    <input id="name" placeholder="Name">
+
+    <input id="phone" placeholder="Phone">
+
+    <button onclick="addLead()">
+      Add Lead
+    </button>
+
+  </div>
+
+
+
+  <!-- LEAD LIST -->
+  <div class="card">
+
+    <h3>Your Leads</h3>
+
+    <div id="leads"></div>
+
+  </div>
+
+
+</div>
+
+
+
+<!-- CHATBOT BUTTON -->
+<div class="chatbotBtn"
+onclick="toggleChat()">
+💬
+</div>
+
+
+
+<!-- CHATBOT -->
+<div id="chatContainer">
+
+<div id="chat"></div>
+
+<input
+id="input"
+placeholder="Type message..."
+>
+
+</div>
+
+
+
+<script>
+
+
+// ============================
+// USER ID
+// ============================
+function getUserId(){
+
+let id =
+localStorage.getItem("userId");
+
+if(!id){
+
+id="user_"+Date.now();
+
+localStorage.setItem(
+"userId",
+id
+);
+
+}
+
+return id;
+
+}
+
+const userId = getUserId();
+
+
+
+// ============================
+// LOAD LEADS
+// ============================
+async function loadLeads(){
+
+const res =
+await fetch("/api/leads");
+
+const leads =
+await res.json();
+
+const container =
+document.getElementById("leads");
+
+container.innerHTML="";
+
+document.getElementById(
+"leadCount"
+).innerText = leads.length;
+
+
+leads.forEach(lead=>{
+
+container.innerHTML += `
+
+<div class="lead">
+
+${lead.name} - ${lead.phone}
+
+</div>
+
+`;
+
+});
+
+}
+
+
+
+// ============================
+// ADD LEAD
+// ============================
+async function addLead(){
+
+const name =
+document.getElementById("name").value;
+
+const phone =
+document.getElementById("phone").value;
+
+
+await fetch("/api/add-lead",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+name,
+phone,
+userId
+
+})
+
+});
+
+
+loadLeads();
+
+}
+
+
+
+// ============================
+// CHATBOT
+// ============================
+function toggleChat(){
+
+const chat =
+document.getElementById("chatContainer");
+
+chat.style.display =
+chat.style.display==="flex"
+?"none"
+:"flex";
+
+}
+
+
+
+function addMessage(text,type){
+
+const msg =
+document.createElement("div");
+
+msg.className =
+"message "+type;
+
+msg.innerText=text;
+
+document
+.getElementById("chat")
+.appendChild(msg);
+
+}
+
+
+
+document
+.getElementById("input")
+.addEventListener(
+"keydown",
+async e=>{
+
+if(e.key==="Enter"){
+
+const text=e.target.value;
+
+addMessage(text,"user");
+
+e.target.value="";
+
+
+const res =
+await fetch("/chat",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+message:text,
+userId
+
+})
+
+});
+
+
+const data =
+await res.json();
+
+addMessage(
+data.reply,
+"bot"
+);
+
+}
+
+});
+
+
+
+// ============================
+// LOGOUT
+// ============================
+function logout(){
+
+localStorage.clear();
+
+window.location.href="/";
+
+}
+
+
+
+// ============================
+// INIT
+// ============================
+loadLeads();
+
+
+</script>
+
+
+</body>
+</html>
