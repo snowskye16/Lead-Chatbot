@@ -187,9 +187,23 @@ SnowSkye AI
 </div>
 
 
+
 <script>
 
-// Elements
+// ==========================
+// CONFIG (AUTO-DETECT RENDER)
+// ==========================
+
+const API_URL =
+window.location.hostname === "localhost"
+? "http://localhost:3000/chat"
+: "/chat";
+
+
+// ==========================
+// ELEMENTS
+// ==========================
+
 const toggleBtn = document.getElementById("toggleBtn");
 const chatBox = document.getElementById("chatBox");
 const closeBtn = document.getElementById("closeBtn");
@@ -197,9 +211,33 @@ const messages = document.getElementById("messages");
 const input = document.getElementById("input");
 
 let welcomed = false;
+let isSending = false;
 
 
-// Toggle open
+// ==========================
+// SESSION ID (persistent)
+// ==========================
+
+let sessionId =
+localStorage.getItem("snowskye_session");
+
+if(!sessionId){
+
+sessionId =
+crypto.randomUUID();
+
+localStorage.setItem(
+"snowskye_session",
+sessionId
+);
+
+}
+
+
+// ==========================
+// TOGGLE CHAT
+// ==========================
+
 toggleBtn.onclick = () => {
 
 if(chatBox.style.display === "flex"){
@@ -221,8 +259,6 @@ welcomed = true;
 
 };
 
-
-// Close button
 closeBtn.onclick = () => {
 
 chatBox.style.display = "none";
@@ -230,114 +266,177 @@ chatBox.style.display = "none";
 };
 
 
-// Welcome message
+// ==========================
+// WELCOME MESSAGE
+// ==========================
+
 function welcomeMessage(){
 
 setTimeout(()=>{
 
-addMessage(
-"Hello 👋 I'm SnowSkye AI. How can I help you today?",
-"bot"
-);
+const text =
+"Hello 👋 I'm SnowSkye AI. How can I help you today?";
 
-speak(
-"Hello. I'm SnowSkye AI. How can I help you today."
-);
+addMessage(text,"bot");
+speak(text);
 
 },500);
 
 }
 
 
-// Add message
+// ==========================
+// ADD MESSAGE
+// ==========================
+
 function addMessage(text,type){
 
-const div = document.createElement("div");
+const div =
+document.createElement("div");
 
-div.className = "msg " + type;
+div.className =
+"msg " + type;
 
-div.innerText = text;
+div.innerText =
+text;
 
 messages.appendChild(div);
 
-messages.scrollTop = messages.scrollHeight;
+messages.scrollTop =
+messages.scrollHeight;
 
 }
 
 
-// Typing animation
+// ==========================
+// TYPING INDICATOR
+// ==========================
+
 function showTyping(){
 
-const div = document.createElement("div");
+removeTyping();
 
-div.className = "msg bot typing";
+const div =
+document.createElement("div");
+
+div.className =
+"msg bot typing";
 
 div.id = "typing";
 
-div.innerText = "SnowSkye AI is typing...";
+div.innerText =
+"SnowSkye AI is typing...";
 
 messages.appendChild(div);
 
-messages.scrollTop = messages.scrollHeight;
-
 }
-
 
 function removeTyping(){
 
-const typing = document.getElementById("typing");
+const typing =
+document.getElementById("typing");
 
-if(typing) typing.remove();
+if(typing)
+typing.remove();
 
 }
 
 
-// SAME CONSISTENT VOICE
+// ==========================
+// NATURAL HUMAN VOICE ENGINE (FINAL)
+// ==========================
+
 let selectedVoice = null;
 
 function loadVoice(){
 
 const voices = speechSynthesis.getVoices();
 
+// Best natural voices priority
 selectedVoice =
-voices.find(v => v.name === "Google US English") ||
-voices.find(v => v.name === "Jenny") ||
-voices.find(v => v.name === "Samantha") ||
+voices.find(v => v.name.includes("Google US English")) ||
+voices.find(v => v.name.includes("Microsoft Jenny")) ||
+voices.find(v => v.name.includes("Microsoft Aria")) ||
+voices.find(v => v.name.includes("Samantha")) ||
 voices.find(v => v.lang === "en-US") ||
 voices[0];
 
 }
 
 speechSynthesis.onvoiceschanged = loadVoice;
-
 loadVoice();
 
 
-// Speak
-function speak(text){
+// ==========================
+// CLEAN TEXT FOR SPEECH
+// ==========================
 
-speechSynthesis.cancel();
+function cleanTextForSpeech(text){
 
-const speech = new SpeechSynthesisUtterance(text);
+return text
 
-speech.voice = selectedVoice;
+// Remove emojis completely
+.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
 
-speech.lang = "en-US";
+// Remove markdown (*, #, etc)
+.replace(/[*_#`~]/g,"")
 
-speech.rate = 1.02;
-speech.pitch = 1.2;
-speech.volume = 1;
+// Remove special symbols
+.replace(/[^\w\s.,!?']/g, "")
 
-speechSynthesis.speak(speech);
+// Add pauses after punctuation
+.replace(/\./g, ". ")
+.replace(/\!/g, "! ")
+.replace(/\?/g, "? ")
+
+// Fix spacing
+.replace(/\s+/g, " ")
+.trim();
 
 }
 
 
-// Backup reply
+// ==========================
+// SPEAK FUNCTION
+// ==========================
+
+function speak(text){
+
+try{
+
+if(!text) return;
+
+speechSynthesis.cancel();
+
+const cleanText = cleanTextForSpeech(text);
+
+const speech = new SpeechSynthesisUtterance(cleanText);
+
+speech.voice = selectedVoice;
+
+// MOST NATURAL HUMAN SETTINGS
+speech.rate = 0.92;     // slower, clearer
+speech.pitch = 1.0;     // normal human pitch
+speech.volume = 1;
+
+speechSynthesis.speak(speech);
+
+}catch(err){
+
+console.log("Speech error:", err);
+
+}
+
+}
+
+// ==========================
+// BACKUP REPLY
+// ==========================
+
 function backupReply(){
 
 const reply =
-"I'm sorry, I'm having trouble responding right now. Please try again.";
+"I'm having trouble responding right now. Please try again.";
 
 addMessage(reply,"bot");
 
@@ -346,12 +445,20 @@ speak(reply);
 }
 
 
-// Send message
+// ==========================
+// SEND MESSAGE
+// ==========================
+
 async function sendMessage(){
 
-const text = input.value.trim();
+if(isSending) return;
+
+const text =
+input.value.trim();
 
 if(!text) return;
+
+isSending = true;
 
 addMessage(text,"user");
 
@@ -361,11 +468,17 @@ showTyping();
 
 try{
 
-const controller = new AbortController();
+const controller =
+new AbortController();
 
-const timeout = setTimeout(()=>controller.abort(),10000);
+const timeout =
+setTimeout(
+()=>controller.abort(),
+20000
+);
 
-const res = await fetch("/chat",{
+const res =
+await fetch(API_URL,{
 
 method:"POST",
 
@@ -373,31 +486,44 @@ headers:{
 "Content-Type":"application/json"
 },
 
-body:JSON.stringify({ message:text }),
+body:JSON.stringify({
 
-signal:controller.signal
+message:text,
+sessionId
+
+}),
+
+signal:
+controller.signal
 
 });
 
 clearTimeout(timeout);
 
-const data = await res.json();
+if(!res.ok)
+throw new Error();
+
+const data =
+await res.json();
 
 removeTyping();
 
-if(!data || !data.reply){
+if(!data.reply){
 
 backupReply();
-return;
 
-}
+}else{
 
-addMessage(data.reply,"bot");
+addMessage(
+data.reply,
+"bot"
+);
 
 speak(data.reply);
 
 }
-catch{
+
+}catch{
 
 removeTyping();
 
@@ -405,24 +531,35 @@ backupReply();
 
 }
 
+isSending = false;
+
 }
 
 
-// Send button
-document.getElementById("send").onclick = sendMessage;
+// ==========================
+// BUTTON EVENTS
+// ==========================
 
+document
+.getElementById("send")
+.onclick =
+sendMessage;
 
-// Enter key
-input.addEventListener("keypress",(e)=>{
-
+input.addEventListener(
+"keypress",
+(e)=>{
 if(e.key==="Enter")
 sendMessage();
-
 });
 
 
-// Voice input
-document.getElementById("mic").onclick = ()=>{
+// ==========================
+// VOICE INPUT
+// ==========================
+
+document
+.getElementById("mic")
+.onclick = ()=>{
 
 const SpeechRecognition =
 window.SpeechRecognition ||
@@ -430,19 +567,23 @@ window.webkitSpeechRecognition;
 
 if(!SpeechRecognition){
 
-alert("Voice recognition not supported");
+alert(
+"Voice recognition not supported"
+);
 
 return;
 
 }
 
-const recognition = new SpeechRecognition();
+const recognition =
+new SpeechRecognition();
 
 recognition.lang="en-US";
 
 recognition.start();
 
-recognition.onresult=(event)=>{
+recognition.onresult =
+(event)=>{
 
 input.value =
 event.results[0][0].transcript;

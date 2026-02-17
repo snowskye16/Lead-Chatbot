@@ -3,28 +3,109 @@ require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const path = require("path");
+const helmet = require("helmet");
+const compression = require("compression");
+
+const rateLimit = require("express-rate-limit");
+const NodeCache = require("node-cache");
+const validator = require("validator");
+const { v4: uuidv4 } = require("uuid");
 
 const { createClient } = require("@supabase/supabase-js");
 const OpenAI = require("openai");
 
+
+// ============================
+// CREATE APP FIRST
+// ============================
+
 const app = express();
 
-app.use(cors());
-app.use(express.json());
 
-app.use(session({
-  secret: "snowskye-secret",
-  resave: false,
-  saveUninitialized: false
+// ============================
+// TRUST PROXY (RENDER SAFE)
+// ============================
+
+app.set("trust proxy", 1);
+
+
+// ============================
+// SECURITY
+// ============================
+
+app.use(helmet());
+app.use(compression());
+
+
+// ============================
+// RATE LIMIT
+// ============================
+
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30
+});
+
+app.use("/chat", limiter);
+
+
+// ============================
+// CACHE
+// ============================
+
+const cache = new NodeCache({
+  stdTTL: 60
+});
+
+
+// ============================
+// CORS
+// ============================
+
+app.use(cors({
+  origin: true,
+  credentials: true
 }));
 
-app.use(express.static("public"));
+
+app.use(express.json());
+
+app.use(express.static(path.join(__dirname, "public")));
+
+
+// ============================
+// SESSION
+// ============================
+
+app.use(session({
+
+  name: "snowskye-session",
+
+  secret: process.env.SESSION_SECRET || "fallback",
+
+  resave: false,
+
+  saveUninitialized: false,
+
+  cookie: {
+
+    secure: true,
+    httpOnly: true,
+    sameSite: "none",
+
+    maxAge: 1000 * 60 * 60 * 24 * 7
+
+  }
+
+}));
 
 
 // ============================
 // SUPABASE
 // ============================
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -34,32 +115,118 @@ const supabase = createClient(
 // ============================
 // OPENAI
 // ============================
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
 
 // ============================
-// REGISTER
+// VERIFY API KEY MIDDLEWARE
 // ============================
+
+async function verifyApiKey(req, res, next) {
+
+  try {
+
+    const { apiKey } = req.body;
+
+    if (!apiKey)
+      return res.status(401).json({
+        reply: "Missing API key"
+      });
+
+    const { data: client } =
+      await supabase
+        .from("clients")
+        .select("*")
+        .eq("api_key", apiKey)
+        .single();
+
+    if (!client)
+      return res.status(401).json({
+        reply: "Invalid API key"
+      });
+
+    req.client = client;
+
+    next();
+
+  }
+  catch {
+
+    res.status(500).json({
+      reply: "Verification failed"
+    });
+
+  }
+
+}
+
+
+// ============================
+// HEALTH CHECK
+// ============================
+
+app.get("/", (req, res) => {
+
+  res.send("SnowSkye AI SaaS running");
+
+});
+
+
+// ============================
+// CLIENT REGISTER (SaaS)
+// ============================
+
 app.post("/api/register", async (req, res) => {
 
-  const { email, password } = req.body;
+  try {
 
-  const { data, error } = await supabase
-    .from("users")
-    .insert([{
-      email,
-      password,
-      role: "client"
-    }])
-    .select()
-    .single();
+    const { email, password } = req.body;
 
-  if (error)
-    return res.json({ success: false, error: error.message });
+    if (!validator.isEmail(email))
+      return res.json({
+        success: false
+      });
 
-  res.json({ success: true });
+    const hashed =
+      await bcrypt.hash(password, 10);
+
+    const apiKey =
+      "sk-" + uuidv4();
+
+    const { error } =
+      await supabase
+        .from("clients")
+        .insert([{
+
+          email,
+          password: hashed,
+          api_key: apiKey,
+          ai_prompt:
+            "You are SnowSkye AI helping customers."
+
+        }]);
+
+    if (error)
+      throw error;
+
+    res.json({
+      success: true,
+      apiKey
+    });
+
+  }
+  catch (err) {
+
+    console.error(err);
+
+    res.json({
+      success: false
+    });
+
+  }
 
 });
 
@@ -67,134 +234,249 @@ app.post("/api/register", async (req, res) => {
 // ============================
 // LOGIN
 // ============================
+
 app.post("/api/login", async (req, res) => {
 
-  const { email, password } = req.body;
+  try {
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", email)
-    .eq("password", password)
-    .single();
+    const { email, password } = req.body;
 
-  if (error || !data)
-    return res.json({ success: false });
+    const { data: client } =
+      await supabase
+        .from("clients")
+        .select("*")
+        .eq("email", email)
+        .single();
 
-  req.session.user = data;
+    if (!client)
+      return res.json({
+        success: false
+      });
 
-  res.json({
-    success: true,
-    user: data
-  });
+    const valid =
+      await bcrypt.compare(
+        password,
+        client.password
+      );
 
-});
+    if (!valid)
+      return res.json({
+        success: false
+      });
 
+    req.session.client = {
 
-// ============================
-// LOGOUT
-// ============================
-app.get("/api/logout", (req, res) => {
+      id: client.id,
+      email: client.email,
+      apiKey: client.api_key
 
-  req.session.destroy();
+    };
 
-  res.json({ success: true });
+    res.json({
+      success: true,
+      apiKey: client.api_key
+    });
 
-});
+  }
+  catch {
 
+    res.json({
+      success: false
+    });
 
-// ============================
-// GET LEADS
-// ============================
-app.get("/api/leads", async (req, res) => {
-
-  const { data } = await supabase
-    .from("leads")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  res.json(data);
-
-});
-
-
-// ============================
-// ADD LEAD
-// ============================
-app.post("/api/leads", async (req, res) => {
-
-  const { name, email } = req.body;
-
-  await supabase
-    .from("leads")
-    .insert([{
-      name,
-      email
-    }]);
-
-  res.json({ success: true });
+  }
 
 });
 
 
 // ============================
-// CHATBOT
+// CHAT ENDPOINT (UPGRADED)
 // ============================
-app.post("/chat", async (req, res) => {
 
-  const { message } = req.body;
+app.post("/chat", verifyApiKey, async (req, res) => {
 
-  const completion =
-    await openai.chat.completions.create({
+  try {
 
-      model: "gpt-4o-mini",
+    const { message } = req.body;
 
-      messages: [
-        {
-          role: "system",
-          content: "You are SnowSkye AI assistant helping clients and capturing leads."
-        },
-        {
+    const client = req.client;
+
+    if (!message)
+      return res.json({
+        reply: "Message empty"
+      });
+
+
+    // ============================
+    // CACHE CHECK
+    // ============================
+
+    const cacheKey =
+      client.id + message;
+
+    if (cache.has(cacheKey))
+      return res.json({
+        reply: cache.get(cacheKey)
+      });
+
+
+    // ============================
+    // LOAD MEMORY
+    // ============================
+
+    const { data: history } =
+      await supabase
+        .from("conversations")
+        .select("message, reply")
+        .eq("client_id", client.id)
+        .order("created_at", {
+          ascending: false
+        })
+        .limit(5);
+
+
+    const messages = [
+
+      {
+        role: "system",
+        content:
+          client.ai_prompt ||
+          "You are SnowSkye AI assistant."
+      }
+
+    ];
+
+
+    if (history)
+      history.reverse().forEach(item => {
+
+        messages.push({
           role: "user",
-          content: message
-        }
-      ]
+          content: item.message
+        });
+
+        messages.push({
+          role: "assistant",
+          content: item.reply
+        });
+
+      });
+
+
+    messages.push({
+
+      role: "user",
+      content: message
 
     });
 
-  const reply =
-    completion.choices[0].message.content;
 
-  res.json({ reply });
+    // ============================
+    // OPENAI REQUEST
+    // ============================
 
-}); // ✅ THIS WAS MISSING
+    const completion =
+      await openai.chat.completions.create({
+
+        model: "gpt-4o-mini",
+
+        messages
+
+      });
 
 
-// ============================
-// SAVE CONVERSATION
-// ============================
-app.post("/save", async (req,res)=>{
+    const reply =
+      completion.choices[0].message.content;
 
-  const {userId,message,reply}=req.body;
 
-  await supabase
-    .from("conversations")
-    .insert([
-      {
-        user_id:userId,
-        message,
-        reply
-      }
-    ]);
+    // ============================
+    // CACHE RESULT
+    // ============================
 
-  res.json({success:true});
+    cache.set(cacheKey, reply);
+
+
+    // ============================
+    // SAVE CONVERSATION (async)
+    // ============================
+
+    setImmediate(async () => {
+
+      await supabase
+        .from("conversations")
+        .insert([{
+
+          client_id: client.id,
+          message,
+          reply
+
+        }]);
+
+    });
+
+
+    // ============================
+    // AUTO CAPTURE LEAD
+    // ============================
+
+    if (validator.isEmail(message)) {
+
+      await supabase
+        .from("leads")
+        .insert([{
+
+          client_id: client.id,
+          email: message
+
+        }]);
+
+    }
+
+
+    // ============================
+    // TRACK USAGE
+    // ============================
+
+    await supabase
+      .from("usage")
+      .insert([{
+
+        client_id: client.id
+
+      }]);
+
+
+    res.json({
+      reply
+    });
+
+  }
+  catch (err) {
+
+    console.error(err);
+
+    res.json({
+      reply: "AI error"
+    });
+
+  }
 
 });
 
 
 // ============================
-app.listen(3000, () => {
+// PORT (RENDER SAFE)
+// ============================
 
-  console.log("SnowSkye AI running on port 3000");
+const PORT =
+  process.env.PORT || 3000;
+
+
+app.listen(PORT, () => {
+
+  console.log(
+    "SnowSkye SaaS running on port",
+    PORT
+  );
 
 });
