@@ -12,7 +12,24 @@
 
   function init() {
 
-    const scriptTag = document.currentScript;
+    clet scriptTag = document.currentScript;
+
+if (!scriptTag) {
+  const scripts = document.getElementsByTagName("script");
+
+  for (let i = scripts.length - 1; i >= 0; i--) {
+    if (scripts[i].src.includes("widget.js")) {
+      scriptTag = scripts[i];
+      break;
+    }
+  }
+}
+
+if (!scriptTag) {
+  console.error("SnowSkye: Script tag not found");
+  return;
+}
+
 
     // ============================
     // CONFIG FROM CLIENT INSTALL
