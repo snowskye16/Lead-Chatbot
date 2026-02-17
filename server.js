@@ -453,13 +453,14 @@ app.post("/chat", verifyApiKey, async (req, res) => {
   }
   catch (err) {
 
-    console.error(err);
+  console.error("REGISTER ERROR:", err);
 
-    res.json({
-      reply: "AI error"
-    });
+  res.status(500).json({
+    success: false,
+    error: err.message
+  });
 
-  }
+}
 
 });
 
