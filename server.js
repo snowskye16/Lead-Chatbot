@@ -467,6 +467,119 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 }
 
 });
+// ============================
+// GET CLIENT DATA
+// ============================
+
+app.post("/api/get-client", (req, res) => {
+
+try {
+
+const apiKey = req.body.apiKey;
+
+if(!apiKey){
+
+return res.json({
+success:false,
+error:"No API key"
+});
+
+}
+
+db.get(
+"SELECT email, api_key, ai_prompt FROM clients WHERE api_key = ?",
+[apiKey],
+(err, row) => {
+
+if(err){
+
+console.log(err);
+
+return res.json({
+success:false,
+error:"Database error"
+});
+
+}
+
+if(!row){
+
+return res.json({
+success:false,
+error:"Client not found"
+});
+
+}
+
+res.json(row);
+
+});
+
+} catch(e){
+
+console.log(e);
+
+res.json({
+success:false,
+error:"Server crash"
+});
+
+}
+
+});
+
+
+// ============================
+// UPDATE AI PROMPT
+// ============================
+
+app.post("/api/update-prompt", async (req, res) => {
+
+  try {
+
+    const { apiKey, ai_prompt } = req.body;
+
+    await supabase
+      .from("clients")
+      .update({ ai_prompt })
+      .eq("api_key", apiKey);
+
+    res.json({ success: true });
+
+  } catch {
+
+    res.json({ success: false });
+
+  }
+
+});
+
+
+// ============================
+// DELETE ACCOUNT
+// ============================
+
+app.post("/api/delete-account", async (req, res) => {
+
+  try {
+
+    const { apiKey } = req.body;
+
+    await supabase
+      .from("clients")
+      .delete()
+      .eq("api_key", apiKey);
+
+    res.json({ success: true });
+
+  } catch {
+
+    res.json({ success: false });
+
+  }
+
+});
+
 
 
 // ============================
