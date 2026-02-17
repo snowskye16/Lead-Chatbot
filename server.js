@@ -471,53 +471,39 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 // GET CLIENT DATA
 // ============================
 
-app.post("/api/get-client", (req, res) => {
+app.post("/api/get-client", async (req, res) => {
 
 try {
 
-const apiKey = req.body.apiKey;
+const { apiKey } = req.body;
 
-if(!apiKey){
-
+if (!apiKey) {
 return res.json({
 success:false,
-error:"No API key"
+error:"Missing API key"
 });
-
 }
 
-db.get(
-"SELECT email, api_key, ai_prompt FROM clients WHERE api_key = ?",
-[apiKey],
-(err, row) => {
+const { data, error } = await supabase
+.from("clients")
+.select("email, api_key, ai_prompt")
+.eq("api_key", apiKey)
+.single();
 
-if(err){
-
-console.log(err);
-
-return res.json({
-success:false,
-error:"Database error"
-});
-
-}
-
-if(!row){
+if(error){
+console.log(error);
 
 return res.json({
 success:false,
 error:"Client not found"
 });
-
 }
 
-res.json(row);
+res.json(data);
 
-});
+}catch(err){
 
-} catch(e){
-
-console.log(e);
+console.log(err);
 
 res.json({
 success:false,
@@ -527,7 +513,6 @@ error:"Server crash"
 }
 
 });
-
 
 // ============================
 // UPDATE AI PROMPT
