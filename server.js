@@ -28,6 +28,7 @@ app.set("trust proxy", 1);
 // ============================
 
 app.use(helmet({
+  crossOriginResourcePolicy: false,
   contentSecurityPolicy: false
 }));
 
@@ -37,6 +38,11 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  next();
+});
 
 app.use(express.json());
 

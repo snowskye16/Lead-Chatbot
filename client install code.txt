@@ -1,2 +1,19 @@
-<script src="https://lead-chatbot-gti5.onrender.com"></script>
+<script
+src="https://lead-chatbot-gti5.onrender.com/widget.js"
+data-api-key="sk-55c2d0e8-08b3-44af-aa9c-3329efacdcd2">
+data-brand="Elite Dental Assistant"
+data-color="#0096c7">
+</script>
 
+
+
+
+
+
+create key
+
+client 2.. sk-65aec011-51da-4f81-8a34-936f7b8cbb3e
+
+
+
+use  nodegeneratekey.js
