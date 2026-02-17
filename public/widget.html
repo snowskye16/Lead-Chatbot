@@ -1,421 +1,514 @@
-(function () {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SnowSkye AI</title>
+
+<style>
+
+body{
+margin:0;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+}
+
+/* BUTTON */
+
+#btn{
+position:fixed;
+bottom:20px;
+right:20px;
+width:60px;
+height:60px;
+background:#2563eb;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+cursor:pointer;
+box-shadow:0 10px 25px rgba(0,0,0,0.3);
+z-index:999999;
+transition:.3s;
+}
+
+#btn img{
+width:28px;
+}
+
+/* BADGE */
+
+#badge{
+position:absolute;
+top:-5px;
+right:-5px;
+background:red;
+color:white;
+width:20px;
+height:20px;
+border-radius:50%;
+font-size:12px;
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+/* CHAT */
+
+#chat{
+position:fixed;
+bottom:90px;
+right:20px;
+width:380px;
+height:550px;
+background:white;
+border-radius:16px;
+box-shadow:0 15px 50px rgba(0,0,0,0.3);
+display:none;
+flex-direction:column;
+overflow:hidden;
+animation:fadeIn .25s;
+}
+
+@media(max-width:600px){
+
+#chat{
+width:100%;
+height:100%;
+bottom:0;
+right:0;
+border-radius:0;
+}
+
+}
+
+/* HEADER */
+
+#header{
+background:#2563eb;
+color:white;
+padding:12px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+}
+
+#header-left{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+#header img{
+height:32px;
+}
+
+#close{
+cursor:pointer;
+font-size:18px;
+}
+
+/* MESSAGES */
+
+#messages{
+flex:1;
+padding:15px;
+overflow-y:auto;
+background:#f1f5f9;
+}
 
-  // ============================
-  // CONFIG
-  // ============================
+/* MESSAGE */
 
-  const script = document.currentScript;
-  const apiKey = script.getAttribute("data-api-key");
+.row{
+display:flex;
+gap:8px;
+margin-bottom:10px;
+}
 
-  if (!apiKey) {
-    console.error("SnowSkye: Missing API key");
-    return;
-  }
+.row.user{
+justify-content:flex-end;
+}
 
-  const API_URL = "https://lead-chatbot-gti5.onrender.com";
+.avatar{
+width:32px;
+height:32px;
+border-radius:50%;
+}
 
-  // persistent session
-  let sessionId =
-    localStorage.getItem("snowskye_session");
+.bubble{
+padding:10px 14px;
+border-radius:12px;
+max-width:70%;
+font-size:14px;
+}
 
-  if (!sessionId) {
+.bot .bubble{
+background:#e2e8f0;
+}
 
-    sessionId =
-      crypto.randomUUID();
+.user .bubble{
+background:#2563eb;
+color:white;
+}
 
-    localStorage.setItem(
-      "snowskye_session",
-      sessionId
-    );
+/* INPUT */
 
-  }
+#input-area{
+display:flex;
+border-top:1px solid #eee;
+}
 
-  let leadCaptured = false;
+#input{
+flex:1;
+padding:12px;
+border:none;
+outline:none;
+}
 
-  // ============================
-  // CREATE BUTTON
-  // ============================
+#send{
+background:#2563eb;
+color:white;
+border:none;
+padding:12px 16px;
+cursor:pointer;
+}
 
-  const button =
-    document.createElement("div");
+/* TYPING */
 
-  button.innerHTML = "💬";
+.typing span{
+width:6px;
+height:6px;
+background:#999;
+display:inline-block;
+border-radius:50%;
+margin-right:3px;
+animation:blink 1.4s infinite;
+}
 
-  Object.assign(button.style, {
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
 
-    position: "fixed",
-    bottom: "20px",
-    right: "20px",
-    width: "60px",
-    height: "60px",
-    background: "#2563eb",
-    color: "white",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "24px",
-    cursor: "pointer",
-    zIndex: "999999"
+@keyframes blink{
+0%,80%,100%{opacity:0}
+40%{opacity:1}
+}
 
-  });
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
+}
 
-  document.body.appendChild(button);
+</style>
 
-  // ============================
-  // CREATE CHAT BOX
-  // ============================
+</head>
+<body>
 
-  const box =
-    document.createElement("div");
+<!-- BUTTON -->
 
-  Object.assign(box.style, {
+<div id="btn">
 
-    position: "fixed",
-    bottom: "90px",
-    right: "20px",
-    width: "320px",
-    height: "450px",
-    background: "white",
-    borderRadius: "12px",
-    boxShadow: "0 5px 25px rgba(0,0,0,0.2)",
-    display: "none",
-    flexDirection: "column",
-    overflow: "hidden",
-    zIndex: "999999"
+<img src="/logo.png">
 
-  });
+<div id="badge">1</div>
 
-  document.body.appendChild(box);
+</div>
 
-  // ============================
-  // HEADER
-  // ============================
 
-  const header =
-    document.createElement("div");
+<!-- CHAT -->
 
-  header.innerHTML =
-    "SnowSkye AI";
+<div id="chat">
 
-  Object.assign(header.style, {
+<div id="header">
 
-    background: "#2563eb",
-    color: "white",
-    padding: "12px",
-    fontWeight: "bold"
+<div id="header-left">
+<img src="/logo.png">
+SnowSkye AI
+</div>
 
-  });
+<div id="close">✕</div>
 
-  box.appendChild(header);
+</div>
 
-  // ============================
-  // MESSAGES
-  // ============================
+<div id="messages"></div>
 
-  const messages =
-    document.createElement("div");
+<div id="input-area">
 
-  Object.assign(messages.style, {
+<input id="input" placeholder="Type message...">
 
-    flex: "1",
-    padding: "10px",
-    overflowY: "auto",
-    background: "#f8fafc"
+<button id="send">Send</button>
 
-  });
+</div>
 
-  box.appendChild(messages);
+</div>
 
-  // ============================
-  // INPUT AREA
-  // ============================
 
-  const inputArea =
-    document.createElement("div");
+<script>
 
-  inputArea.style.display =
-    "flex";
+const API_URL =
+"https://lead-chatbot-gti5.onrender.com";
 
-  const input =
-    document.createElement("input");
+const API_KEY =
+"sk-55c2d0e8-08b3-44af-aa9c-3329efacdcd2"; // CHANGE
 
-  input.placeholder =
-    "Type message...";
 
-  Object.assign(input.style, {
+const btn=document.getElementById("btn");
+const chat=document.getElementById("chat");
+const close=document.getElementById("close");
+const input=document.getElementById("input");
+const send=document.getElementById("send");
+const messages=document.getElementById("messages");
+const badge=document.getElementById("badge");
 
-    flex: "1",
-    padding: "10px",
-    border: "none",
-    outline: "none"
+let unread=0;
 
-  });
+// SESSION
 
-  const send =
-    document.createElement("button");
+let sessionId=
+localStorage.getItem("snowskye_session");
 
-  send.innerHTML =
-    "Send";
+if(!sessionId){
 
-  Object.assign(send.style, {
+sessionId=
+crypto.randomUUID();
 
-    background: "#2563eb",
-    color: "white",
-    border: "none",
-    padding: "10px",
-    cursor: "pointer"
+localStorage.setItem(
+"snowskye_session",
+sessionId
+);
 
-  });
+}
 
-  inputArea.appendChild(input);
-  inputArea.appendChild(send);
 
-  box.appendChild(inputArea);
+// OPEN
 
-  // ============================
-  // TOGGLE
-  // ============================
+btn.onclick=()=>{
 
-  button.onclick = () => {
+chat.style.display="flex";
 
-    box.style.display =
-      box.style.display === "none"
-        ? "flex"
-        : "none";
+badge.style.display="none";
 
-    if (box.style.display === "flex"
-        && messages.children.length === 0) {
+unread=0;
 
-      welcome();
+};
 
-    }
 
-  };
+// CLOSE
 
-  // ============================
-  // ADD MESSAGE
-  // ============================
+close.onclick=()=>{
 
-  function addMessage(text, user) {
+chat.style.display="none";
 
-    const div =
-      document.createElement("div");
+};
 
-    div.innerText = text;
 
-    Object.assign(div.style, {
+// ADD MESSAGE
 
-      marginBottom: "10px",
-      padding: "8px",
-      borderRadius: "8px",
-      maxWidth: "80%"
+function addMessage(text,user){
 
-    });
+const row=
+document.createElement("div");
 
-    if (user) {
+row.className=
+"row "+(user?"user":"bot");
 
-      div.style.background =
-        "#2563eb";
 
-      div.style.color =
-        "white";
+const avatar=
+document.createElement("img");
 
-      div.style.marginLeft =
-        "auto";
+avatar.className="avatar";
 
-    }
-    else {
+avatar.src=
+user?"/user.png":"/bot.png";
 
-      div.style.background =
-        "#e2e8f0";
 
-    }
+const bubble=
+document.createElement("div");
 
-    messages.appendChild(div);
+bubble.className="bubble";
 
-    messages.scrollTop =
-      messages.scrollHeight;
 
-  }
+if(user){
 
-  function typing() {
+bubble.innerText=text;
 
-    const div =
-      document.createElement("div");
+row.appendChild(bubble);
+row.appendChild(avatar);
 
-    div.innerText =
-      "Typing...";
+}else{
 
-    div.id =
-      "typing";
+row.appendChild(avatar);
+row.appendChild(bubble);
 
-    div.style.opacity =
-      "0.6";
+streamText(bubble,text);
 
-    messages.appendChild(div);
+}
 
-  }
 
-  function removeTyping() {
+messages.appendChild(row);
 
-    const t =
-      document.getElementById("typing");
+messages.scrollTop=
+messages.scrollHeight;
 
-    if (t) t.remove();
 
-  }
+// unread badge
 
-  // ============================
-  // VOICE
-  // ============================
+if(chat.style.display!="flex" && !user){
 
-  function clean(text){
+unread++;
 
-    return text
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,"")
-    .replace(/[^\w\s.,!?']/g,"");
+badge.innerText=unread;
 
-  }
+badge.style.display="flex";
 
-  function speak(text){
+playSound();
 
-    try{
+}
 
-      speechSynthesis.cancel();
+}
 
-      const speech =
-        new SpeechSynthesisUtterance(
-          clean(text)
-        );
 
-      speech.rate = 0.95;
-      speech.pitch = 1;
+// STREAM TEXT EFFECT
 
-      speechSynthesis.speak(
-        speech
-      );
+function streamText(element,text){
 
-    }catch{}
+let i=0;
 
-  }
+const speed=15;
 
-  // ============================
-  // LEAD CAPTURE
-  // ============================
+function type(){
 
-  function captureLead(){
+if(i<text.length){
 
-    if (leadCaptured) return;
+element.innerHTML+=text.charAt(i);
 
-    leadCaptured = true;
+i++;
 
-    setTimeout(()=>{
+setTimeout(type,speed);
 
-      addMessage(
-        "Before we continue, may I have your name?",
-        false
-      );
+}
 
-    },2000);
+}
 
-  }
+type();
 
-  // ============================
-  // WELCOME
-  // ============================
+}
 
-  function welcome(){
 
-    const msg =
-      "Hello! How can I help you today?";
+// TYPING
 
-    addMessage(msg,false);
+function showTyping(){
 
-    speak(msg);
+const row=document.createElement("div");
 
-    captureLead();
+row.className="row bot";
 
-  }
+row.id="typing";
 
-  // ============================
-  // SEND MESSAGE
-  // ============================
+row.innerHTML=`
 
-  async function sendMessage(){
+<img src="/bot.png" class="avatar">
 
-    const text =
-      input.value.trim();
+<div class="bubble typing">
 
-    if (!text) return;
+<span></span>
+<span></span>
+<span></span>
 
-    addMessage(text,true);
+</div>
 
-    input.value="";
+`;
 
-    typing();
+messages.appendChild(row);
 
-    try{
+}
 
-      const res =
-        await fetch(
-          API_URL + "/chat",
-          {
 
-            method:"POST",
+function hideTyping(){
 
-            headers:{
-              "Content-Type":
-              "application/json"
-            },
+const t=document.getElementById("typing");
 
-            body:JSON.stringify({
+if(t)t.remove();
 
-              apiKey,
-              message:text,
-              sessionId
+}
 
-            })
 
-          }
-        );
+// SOUND
 
-      const data =
-        await res.json();
+function playSound(){
 
-      removeTyping();
+const audio=
+new Audio(
+"https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
+);
 
-      addMessage(
-        data.reply,
-        false
-      );
+audio.play();
 
-      speak(data.reply);
+}
 
-    }
-    catch{
 
-      removeTyping();
+// SEND MESSAGE
 
-      addMessage(
-        "Connection error",
-        false
-      );
+async function sendMessage(){
 
-    }
+const text=input.value.trim();
 
-  }
+if(!text)return;
 
-  send.onclick =
-    sendMessage;
+addMessage(text,true);
 
-  input.addEventListener(
-    "keypress",
-    e=>{
+input.value="";
 
-      if (e.key==="Enter")
-        sendMessage();
+showTyping();
 
-    });
+try{
 
-})();
+const res=
+await fetch(
+API_URL+"/chat",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+apiKey:API_KEY,
+message:text,
+sessionId
+})
+}
+);
+
+const data=
+await res.json();
+
+hideTyping();
+
+addMessage(data.reply,false);
+
+}
+catch{
+
+hideTyping();
+
+addMessage(
+"Connection error",
+false
+);
+
+}
+
+}
+
+
+send.onclick=sendMessage;
+
+input.onkeypress=e=>{
+if(e.key==="Enter")
+sendMessage();
+};
+
+</script>
+
+</body>
+</html>

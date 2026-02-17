@@ -1,183 +1,463 @@
 (function () {
 
-  if (window.AILeadWidgetLoaded) return;
-  window.AILeadWidgetLoaded = true;
+  // ============================
+  // CONFIG
+  // ============================
 
-  const style = document.createElement("style");
-  style.innerHTML = `
-    .ai-chat-toggle {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #2563eb;
-      color: white;
-      font-size: 26px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      z-index: 999999;
-    }
+  const script = document.currentScript;
+  const apiKey = script.getAttribute("data-api-key");
 
-    .ai-chat-container {
-      position: fixed;
-      bottom: 90px;
-      right: 20px;
-      width: 350px;
-      max-width: 95%;
-      height: 450px;
-      background: white;
-      border-radius: 15px;
-      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      z-index: 999998;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.25s ease;
-      pointer-events: none;
-      font-family: Arial, sans-serif;
-    }
-
-    .ai-chat-container.active {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: all;
-    }
-
-    .ai-header {
-      background: #111827;
-      color: white;
-      padding: 15px;
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-    }
-
-    .ai-box {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      background: #f9fafb;
-    }
-
-    .ai-message {
-      padding: 10px 14px;
-      border-radius: 18px;
-      max-width: 75%;
-      font-size: 14px;
-    }
-
-    .ai-user {
-      align-self: flex-end;
-      background: #2563eb;
-      color: white;
-    }
-
-    .ai-bot {
-      align-self: flex-start;
-      background: #e5e7eb;
-      color: black;
-    }
-
-    .ai-input {
-      display: flex;
-      border-top: 1px solid #eee;
-    }
-
-    .ai-input input {
-      flex: 1;
-      border: none;
-      padding: 12px;
-      outline: none;
-    }
-
-    .ai-input button {
-      border: none;
-      background: #2563eb;
-      color: white;
-      padding: 0 18px;
-      cursor: pointer;
-    }
-  `;
-  document.head.appendChild(style);
-
-  const toggle = document.createElement("div");
-  toggle.className = "ai-chat-toggle";
-  toggle.innerHTML = "💬";
-
-  const container = document.createElement("div");
-  container.className = "ai-chat-container";
-
-  container.innerHTML = `
-    <div class="ai-header">
-      AI Assistant
-      <span style="cursor:pointer;" id="ai-close">✖</span>
-    </div>
-    <div class="ai-box" id="ai-box"></div>
-    <div class="ai-input">
-      <input id="ai-input" placeholder="Type your message..." />
-      <button id="ai-send">Send</button>
-    </div>
-  `;
-
-  document.body.appendChild(toggle);
-  document.body.appendChild(container);
-
-  toggle.onclick = () => {
-    container.classList.toggle("active");
-    document.getElementById("ai-input").focus();
-  };
-
-  document.getElementById("ai-close").onclick = () => {
-    container.classList.remove("active");
-  };
-
-  const box = document.getElementById("ai-box");
-  const input = document.getElementById("ai-input");
-
-  function addMessage(text, type) {
-    const msg = document.createElement("div");
-    msg.className = "ai-message " + type;
-    msg.innerText = text;
-    box.appendChild(msg);
-    box.scrollTop = box.scrollHeight;
+  if (!apiKey) {
+    console.error("SnowSkye: Missing API key");
+    return;
   }
 
-  async function send() {
-    const message = input.value.trim();
-    if (!message) return;
+  const API_URL = "https://lead-chatbot-gti5.onrender.com";
 
-    addMessage(message, "ai-user");
-    input.value = "";
+  // ============================
+  // WAKE RENDER SERVER
+  // ============================
 
-    const res = await fetch("https://lead-chatbot-gti5.onrender.com/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
-    });
-
-    const data = await res.json();
-    addMessage(data.reply || "No response", "ai-bot");
+  async function wakeServer(){
+    try{
+      await fetch(API_URL);
+    }catch{}
   }
 
-  document.getElementById("ai-send").onclick = send;
+  wakeServer();
 
-  input.addEventListener("keydown", function(e) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      send();
-    }
+
+  // ============================
+  // SESSION
+  // ============================
+
+  let sessionId = localStorage.getItem("snowskye_session");
+
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem("snowskye_session", sessionId);
+  }
+
+  let leadCaptured = false;
+
+
+  // ============================
+  // CREATE BUTTON
+  // ============================
+
+  const button = document.createElement("div");
+
+  button.innerHTML = "💬";
+
+  Object.assign(button.style, {
+
+    position: "fixed",
+    bottom: "20px",
+    right: "20px",
+    width: "60px",
+    height: "60px",
+    background: "#2563eb",
+    color: "white",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    cursor: "pointer",
+    zIndex: "999999",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.2)"
+
   });
 
-  addMessage("Hi! 👋 How can I help you?", "ai-bot");
+  document.body.appendChild(button);
+
+
+  // ============================
+  // CHAT BOX
+  // ============================
+
+  const box = document.createElement("div");
+
+  Object.assign(box.style, {
+
+    position: "fixed",
+    bottom: "90px",
+    right: "20px",
+    width: "320px",
+    height: "450px",
+    background: "white",
+    borderRadius: "12px",
+    boxShadow: "0 5px 25px rgba(0,0,0,0.2)",
+    display: "none",
+    flexDirection: "column",
+    overflow: "hidden",
+    zIndex: "999999"
+
+  });
+
+  document.body.appendChild(box);
+
+
+  // ============================
+  // HEADER
+  // ============================
+
+  const header = document.createElement("div");
+
+  header.innerHTML = "SnowSkye AI";
+
+  Object.assign(header.style, {
+
+    background: "#2563eb",
+    color: "white",
+    padding: "12px",
+    fontWeight: "bold"
+
+  });
+
+  box.appendChild(header);
+
+
+  // ============================
+  // MESSAGE AREA
+  // ============================
+
+  const messages = document.createElement("div");
+
+  Object.assign(messages.style, {
+
+    flex: "1",
+    padding: "10px",
+    overflowY: "auto",
+    background: "#f8fafc"
+
+  });
+
+  box.appendChild(messages);
+
+
+  // ============================
+  // INPUT AREA
+  // ============================
+
+  const inputArea = document.createElement("div");
+
+  inputArea.style.display = "flex";
+
+  const input = document.createElement("input");
+
+  input.placeholder = "Type message...";
+
+  Object.assign(input.style, {
+
+    flex: "1",
+    padding: "10px",
+    border: "none",
+    outline: "none"
+
+  });
+
+  const send = document.createElement("button");
+
+  send.innerHTML = "Send";
+
+  Object.assign(send.style, {
+
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    padding: "10px",
+    cursor: "pointer"
+
+  });
+
+  inputArea.appendChild(input);
+  inputArea.appendChild(send);
+
+  box.appendChild(inputArea);
+
+
+  // ============================
+  // TOGGLE CHAT
+  // ============================
+
+  button.onclick = () => {
+
+    box.style.display =
+      box.style.display === "none"
+        ? "flex"
+        : "none";
+
+    if (box.style.display === "flex"
+        && messages.children.length === 0) {
+
+      welcome();
+
+    }
+
+  };
+
+
+  // ============================
+  // ADD MESSAGE
+  // ============================
+
+  function addMessage(text, user){
+
+    const div = document.createElement("div");
+
+    div.innerText = text;
+
+    Object.assign(div.style, {
+
+      marginBottom: "10px",
+      padding: "8px",
+      borderRadius: "8px",
+      maxWidth: "80%",
+      wordWrap: "break-word"
+
+    });
+
+    if(user){
+
+      div.style.background = "#2563eb";
+      div.style.color = "white";
+      div.style.marginLeft = "auto";
+
+    }else{
+
+      div.style.background = "#e2e8f0";
+
+    }
+
+    messages.appendChild(div);
+
+    messages.scrollTop = messages.scrollHeight;
+
+  }
+
+
+  // ============================
+  // TYPING INDICATOR
+  // ============================
+
+  function typing(){
+
+    removeTyping();
+
+    const div = document.createElement("div");
+
+    div.innerText = "SnowSkye is typing...";
+
+    div.id = "typing";
+
+    div.style.opacity = "0.6";
+    div.style.fontStyle = "italic";
+
+    messages.appendChild(div);
+
+  }
+
+  function removeTyping(){
+
+    const t = document.getElementById("typing");
+
+    if(t) t.remove();
+
+  }
+
+
+  // ============================
+  // VOICE CLEANER
+  // ============================
+
+  function clean(text){
+
+    return text
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,"")
+      .replace(/[^\w\s.,!?']/g,"")
+      .replace(/\s+/g," ")
+      .trim();
+
+  }
+
+
+  // ============================
+  // NATURAL VOICE
+  // ============================
+
+  function speak(text){
+
+    try{
+
+      speechSynthesis.cancel();
+
+      const speech =
+        new SpeechSynthesisUtterance(
+          clean(text)
+        );
+
+      const voices =
+        speechSynthesis.getVoices();
+
+      const preferred =
+        voices.find(v =>
+          v.name.includes("Google") ||
+          v.name.includes("Natural") ||
+          v.lang.includes("en")
+        );
+
+      if(preferred)
+        speech.voice = preferred;
+
+      speech.rate = 0.92;
+      speech.pitch = 1;
+      speech.volume = 1;
+
+      speechSynthesis.speak(speech);
+
+    }catch{}
+
+  }
+
+
+  // ============================
+  // LEAD CAPTURE
+  // ============================
+
+  function captureLead(){
+
+    if(leadCaptured) return;
+
+    leadCaptured = true;
+
+    setTimeout(()=>{
+
+      addMessage(
+        "Before we continue, may I have your name?",
+        false
+      );
+
+    },2000);
+
+  }
+
+
+  // ============================
+  // WELCOME MESSAGE
+  // ============================
+
+  function welcome(){
+
+    const msg =
+      "Hello! How can I help you today?";
+
+    addMessage(msg,false);
+
+    speak(msg);
+
+    captureLead();
+
+  }
+
+
+  // ============================
+  // SEND MESSAGE
+  // ============================
+
+  async function sendMessage(){
+
+    const text =
+      input.value.trim();
+
+    if(!text) return;
+
+    addMessage(text,true);
+
+    input.value="";
+
+    typing();
+
+    try{
+
+      const res =
+        await fetch(API_URL + "/chat", {
+
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+            "application/json"
+          },
+
+          body:JSON.stringify({
+
+            apiKey,
+            message:text,
+            sessionId
+
+          })
+
+        });
+
+      if(!res.ok)
+        throw new Error(
+          "Server error " + res.status
+        );
+
+      const data =
+        await res.json();
+
+      removeTyping();
+
+      if(!data || !data.reply){
+
+        addMessage(
+          "Sorry, no response received.",
+          false
+        );
+
+        return;
+
+      }
+
+      addMessage(
+        data.reply,
+        false
+      );
+
+      speak(data.reply);
+
+    }
+    catch(err){
+
+      console.error(err);
+
+      removeTyping();
+
+      addMessage(
+        "Connection issue. Please try again.",
+        false
+      );
+
+    }
+
+  }
+
+
+  // ============================
+  // EVENTS
+  // ============================
+
+  send.onclick =
+    sendMessage;
+
+  input.addEventListener(
+    "keypress",
+    e=>{
+      if(e.key==="Enter")
+        sendMessage();
+    }
+  );
 
 })();
