@@ -179,61 +179,6 @@ app.get("/", (req, res) => {
 });
 
 
-// ============================
-// CLIENT REGISTER (SaaS)
-// ============================
-
-app.post("/api/register", async (req, res) => {
-
-  try {
-
-    const { email, password } = req.body;
-
-    if (!validator.isEmail(email))
-      return res.json({
-        success: false
-      });
-
-    const hashed =
-      await bcrypt.hash(password, 10);
-
-    const apiKey =
-      "sk-" + uuidv4();
-
-    const { error } =
-      await supabase
-        .from("clients")
-        .insert([{
-
-          email,
-          password: hashed,
-          api_key: apiKey,
-          ai_prompt:
-            "You are SnowSkye AI helping customers."
-
-        }]);
-
-    if (error)
-      throw error;
-
-    res.json({
-      success: true,
-      apiKey
-    });
-
-  }
-  catch (err) {
-
-    console.error(err);
-
-    res.json({
-      success: false
-    });
-
-  }
-
-});
-
 
 // ============================
 // LOGIN
