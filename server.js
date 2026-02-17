@@ -471,46 +471,66 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 // GET CLIENT DATA
 // ============================
 
-app.post("/api/get-client", async (req, res) => {
+app.post("/api/register", async (req, res) => {
 
-try {
+  try {
 
-const { apiKey } = req.body;
+    const { email, password } = req.body;
 
-if (!apiKey) {
-return res.json({
-success:false,
-error:"Missing API key"
-});
-}
+    if (!email || !password)
+      return res.json({
+        success: false,
+        error: "Missing email or password"
+      });
 
-const { data, error } = await supabase
-.from("clients")
-.select("email, api_key, ai_prompt")
-.eq("api_key", apiKey)
-.single();
+    if (!validator.isEmail(email))
+      return res.json({
+        success: false,
+        error: "Invalid email"
+      });
 
-if(error){
-console.log(error);
+    const hashed = await bcrypt.hash(password, 10);
 
-return res.json({
-success:false,
-error:"Client not found"
-});
-}
+    const apiKey = "sk-" + uuidv4();
 
-res.json(data);
+    const { data, error } = await supabase
+      .from("clients")
+      .insert([{
+        email,
+        password: hashed,
+        api_key: apiKey,
+        ai_prompt: "You are SnowSkye AI helping customers."
+      }])
+      .select()
+      .single();
 
-}catch(err){
+    if (error) {
 
-console.log(err);
+      console.error("SUPABASE ERROR:", error);
 
-res.json({
-success:false,
-error:"Server crash"
-});
+      return res.json({
+        success: false,
+        error: error.message
+      });
 
-}
+    }
+
+    res.json({
+      success: true,
+      apiKey
+    });
+
+  }
+  catch (err) {
+
+    console.error("REGISTER ERROR:", err);
+
+    res.json({
+      success: false,
+      error: err.message
+    });
+
+  }
 
 });
 
