@@ -190,17 +190,18 @@ app.post("/api/login", async (req, res) => {
 
     const { email, password } = req.body;
 
-    const { data: client } =
-      await supabase
-        .from("clients")
-        .select("*")
-        .eq("email", email)
-        .single();
+    const { data: client, error } =
+  await supabase
+    .from("clients")
+    .select("*")
+    .eq("api_key", apiKey)
+    .maybeSingle();
 
-    if (!client)
-      return res.json({
-        success: false
-      });
+if (error || !client)
+  return res.status(401).json({
+    reply: "Invalid API key"
+  });
+
 
     const valid =
       await bcrypt.compare(
@@ -246,15 +247,67 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 
   try {
 
-    const { message } = req.body;
+    console.log("===== CHAT REQUEST START =====");
+    console.log("BODY:", req.body);
 
+    const { message } = req.body;
     const client = req.client;
 
-    if (!message)
+    console.log("CLIENT:", client);
+
+    if (!message) {
+      console.log("ERROR: Empty message");
       return res.json({
         reply: "Message empty"
       });
+    }
 
+    console.log("Sending to OpenAI...");
+
+    const completion =
+      await openai.chat.completions.create({
+
+        model: "gpt-4o-mini",
+
+        messages: [
+          {
+            role: "system",
+            content:
+              client.ai_prompt ||
+              "You are SnowSkye AI assistant."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ]
+
+      });
+
+    console.log("OpenAI success");
+
+    const reply =
+      completion.choices[0].message.content;
+
+    console.log("Reply:", reply);
+
+    res.json({
+      reply
+    });
+
+  }
+  catch (err) {
+
+    console.error("===== CHAT ERROR =====");
+    console.error(err);
+
+    res.json({
+      reply: "Server error: " + err.message
+    });
+
+  }
+
+});
 
     // ============================
     // CACHE CHECK
@@ -466,16 +519,15 @@ app.post("/api/register", async (req, res) => {
     });
 
   }
-  catch (err) {
+ catch (err) {
 
-    console.error("REGISTER ERROR:", err);
+  console.error("CHAT ERROR:", err);
 
-    res.json({
-      success: false,
-      error: err.message
-    });
+  res.json({
+    reply: "Sorry, I'm having trouble responding right now. Please try again."
+  });
 
-  }
+}
 
 });
 
