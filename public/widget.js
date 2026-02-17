@@ -1,463 +1,431 @@
 (function () {
 
   // ============================
-  // CONFIG
+  // SAFE LOAD
   // ============================
 
-  const script = document.currentScript;
-  const apiKey = script.getAttribute("data-api-key");
-
-  if (!apiKey) {
-    console.error("SnowSkye: Missing API key");
-    return;
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
 
-  const API_URL = "https://lead-chatbot-gti5.onrender.com";
+  function init() {
 
-  // ============================
-  // WAKE RENDER SERVER
-  // ============================
+    const scriptTag = document.currentScript;
 
-  async function wakeServer(){
-    try{
-      await fetch(API_URL);
-    }catch{}
-  }
+    // ============================
+    // CONFIG FROM CLIENT INSTALL
+    // ============================
 
-  wakeServer();
+    const apiKey = scriptTag.getAttribute("data-api-key");
 
+    const BRAND =
+      scriptTag.getAttribute("data-brand")
+      || "Assistant";
 
-  // ============================
-  // SESSION
-  // ============================
+    const COLOR =
+      scriptTag.getAttribute("data-color")
+      || "#2563eb";
 
-  let sessionId = localStorage.getItem("snowskye_session");
+    const API_URL =
+      "https://lead-chatbot-gti5.onrender.com";
 
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-    localStorage.setItem("snowskye_session", sessionId);
-  }
-
-  let leadCaptured = false;
-
-
-  // ============================
-  // CREATE BUTTON
-  // ============================
-
-  const button = document.createElement("div");
-
-  button.innerHTML = "💬";
-
-  Object.assign(button.style, {
-
-    position: "fixed",
-    bottom: "20px",
-    right: "20px",
-    width: "60px",
-    height: "60px",
-    background: "#2563eb",
-    color: "white",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "24px",
-    cursor: "pointer",
-    zIndex: "999999",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.2)"
-
-  });
-
-  document.body.appendChild(button);
-
-
-  // ============================
-  // CHAT BOX
-  // ============================
-
-  const box = document.createElement("div");
-
-  Object.assign(box.style, {
-
-    position: "fixed",
-    bottom: "90px",
-    right: "20px",
-    width: "320px",
-    height: "450px",
-    background: "white",
-    borderRadius: "12px",
-    boxShadow: "0 5px 25px rgba(0,0,0,0.2)",
-    display: "none",
-    flexDirection: "column",
-    overflow: "hidden",
-    zIndex: "999999"
-
-  });
-
-  document.body.appendChild(box);
-
-
-  // ============================
-  // HEADER
-  // ============================
-
-  const header = document.createElement("div");
-
-  header.innerHTML = "SnowSkye AI";
-
-  Object.assign(header.style, {
-
-    background: "#2563eb",
-    color: "white",
-    padding: "12px",
-    fontWeight: "bold"
-
-  });
-
-  box.appendChild(header);
-
-
-  // ============================
-  // MESSAGE AREA
-  // ============================
-
-  const messages = document.createElement("div");
-
-  Object.assign(messages.style, {
-
-    flex: "1",
-    padding: "10px",
-    overflowY: "auto",
-    background: "#f8fafc"
-
-  });
-
-  box.appendChild(messages);
-
-
-  // ============================
-  // INPUT AREA
-  // ============================
-
-  const inputArea = document.createElement("div");
-
-  inputArea.style.display = "flex";
-
-  const input = document.createElement("input");
-
-  input.placeholder = "Type message...";
-
-  Object.assign(input.style, {
-
-    flex: "1",
-    padding: "10px",
-    border: "none",
-    outline: "none"
-
-  });
-
-  const send = document.createElement("button");
-
-  send.innerHTML = "Send";
-
-  Object.assign(send.style, {
-
-    background: "#2563eb",
-    color: "white",
-    border: "none",
-    padding: "10px",
-    cursor: "pointer"
-
-  });
-
-  inputArea.appendChild(input);
-  inputArea.appendChild(send);
-
-  box.appendChild(inputArea);
-
-
-  // ============================
-  // TOGGLE CHAT
-  // ============================
-
-  button.onclick = () => {
-
-    box.style.display =
-      box.style.display === "none"
-        ? "flex"
-        : "none";
-
-    if (box.style.display === "flex"
-        && messages.children.length === 0) {
-
-      welcome();
-
+    if (!apiKey) {
+      console.error("Missing API key");
+      return;
     }
 
-  };
+    // ============================
+    // WAKE SERVER
+    // ============================
 
+    fetch(API_URL + "/health").catch(()=>{});
 
-  // ============================
-  // ADD MESSAGE
-  // ============================
+    // ============================
+    // SESSION
+    // ============================
 
-  function addMessage(text, user){
+    let sessionId =
+      localStorage.getItem("snowskye_session");
 
-    const div = document.createElement("div");
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem(
+        "snowskye_session",
+        sessionId
+      );
+    }
 
-    div.innerText = text;
+    let leadCaptured = false;
 
-    Object.assign(div.style, {
+    // ============================
+    // CREATE BUTTON
+    // ============================
 
-      marginBottom: "10px",
-      padding: "8px",
-      borderRadius: "8px",
-      maxWidth: "80%",
-      wordWrap: "break-word"
+    const button =
+      document.createElement("div");
+
+    button.innerHTML = "💬";
+
+    Object.assign(button.style, {
+
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      width: "60px",
+      height: "60px",
+      background: COLOR,
+      color: "white",
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "24px",
+      cursor: "pointer",
+      zIndex: "999999",
+      boxShadow:
+        "0 4px 15px rgba(0,0,0,0.2)"
 
     });
 
-    if(user){
+    document.body.appendChild(button);
 
-      div.style.background = "#2563eb";
-      div.style.color = "white";
-      div.style.marginLeft = "auto";
+    // ============================
+    // CHAT BOX
+    // ============================
 
-    }else{
+    const box =
+      document.createElement("div");
 
-      div.style.background = "#e2e8f0";
+    const mobile =
+      window.innerWidth < 500;
 
-    }
+    Object.assign(box.style, {
 
-    messages.appendChild(div);
+      position: "fixed",
+      bottom: mobile ? "0" : "90px",
+      right: mobile ? "0" : "20px",
+      width: mobile ? "100%" : "320px",
+      height: mobile ? "100%" : "450px",
+      background: "white",
+      borderRadius:
+        mobile ? "0" : "12px",
+      boxShadow:
+        "0 5px 25px rgba(0,0,0,0.2)",
+      display: "none",
+      flexDirection: "column",
+      overflow: "hidden",
+      zIndex: "999999"
 
-    messages.scrollTop = messages.scrollHeight;
+    });
 
-  }
+    document.body.appendChild(box);
 
+    // ============================
+    // HEADER
+    // ============================
 
-  // ============================
-  // TYPING INDICATOR
-  // ============================
+    const header =
+      document.createElement("div");
 
-  function typing(){
+    header.innerHTML = BRAND;
 
-    removeTyping();
+    Object.assign(header.style, {
 
-    const div = document.createElement("div");
+      background: COLOR,
+      color: "white",
+      padding: "12px",
+      fontWeight: "bold"
 
-    div.innerText = "SnowSkye is typing...";
+    });
 
-    div.id = "typing";
+    box.appendChild(header);
 
-    div.style.opacity = "0.6";
-    div.style.fontStyle = "italic";
+    // ============================
+    // MESSAGES AREA
+    // ============================
 
-    messages.appendChild(div);
+    const messages =
+      document.createElement("div");
 
-  }
+    Object.assign(messages.style, {
 
-  function removeTyping(){
+      flex: "1",
+      padding: "10px",
+      overflowY: "auto",
+      background: "#f8fafc"
 
-    const t = document.getElementById("typing");
+    });
 
-    if(t) t.remove();
+    box.appendChild(messages);
 
-  }
+    // ============================
+    // INPUT AREA
+    // ============================
 
+    const inputArea =
+      document.createElement("div");
 
-  // ============================
-  // VOICE CLEANER
-  // ============================
+    inputArea.style.display = "flex";
 
-  function clean(text){
+    const input =
+      document.createElement("input");
 
-    return text
-      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,"")
-      .replace(/[^\w\s.,!?']/g,"")
-      .replace(/\s+/g," ")
-      .trim();
+    input.placeholder =
+      "Type your message...";
 
-  }
+    Object.assign(input.style, {
 
+      flex: "1",
+      padding: "10px",
+      border: "none",
+      outline: "none"
 
-  // ============================
-  // NATURAL VOICE
-  // ============================
+    });
 
-  function speak(text){
+    const send =
+      document.createElement("button");
 
-    try{
+    send.innerHTML = "Send";
 
-      speechSynthesis.cancel();
+    Object.assign(send.style, {
 
-      const speech =
-        new SpeechSynthesisUtterance(
-          clean(text)
-        );
+      background: COLOR,
+      color: "white",
+      border: "none",
+      padding: "10px",
+      cursor: "pointer"
 
-      const voices =
-        speechSynthesis.getVoices();
+    });
 
-      const preferred =
-        voices.find(v =>
-          v.name.includes("Google") ||
-          v.name.includes("Natural") ||
-          v.lang.includes("en")
-        );
+    inputArea.appendChild(input);
+    inputArea.appendChild(send);
 
-      if(preferred)
-        speech.voice = preferred;
+    box.appendChild(inputArea);
 
-      speech.rate = 0.92;
-      speech.pitch = 1;
-      speech.volume = 1;
+    // ============================
+    // TOGGLE
+    // ============================
 
-      speechSynthesis.speak(speech);
+    button.onclick = () => {
 
-    }catch{}
+      box.style.display =
+        box.style.display === "none"
+          ? "flex"
+          : "none";
 
-  }
+      if (
+        box.style.display === "flex"
+        && messages.children.length === 0
+      ) welcome();
 
+    };
 
-  // ============================
-  // LEAD CAPTURE
-  // ============================
+    // ============================
+    // MESSAGE FUNCTION
+    // ============================
 
-  function captureLead(){
+    function addMessage(
+      text,
+      user = false
+    ){
 
-    if(leadCaptured) return;
+      const div =
+        document.createElement("div");
 
-    leadCaptured = true;
+      div.innerText = text;
 
-    setTimeout(()=>{
+      Object.assign(div.style, {
 
-      addMessage(
-        "Before we continue, may I have your name?",
-        false
-      );
+        marginBottom: "10px",
+        padding: "8px",
+        borderRadius: "8px",
+        maxWidth: "80%",
+        wordWrap: "break-word"
 
-    },2000);
+      });
 
-  }
+      if(user){
 
+        div.style.background = COLOR;
+        div.style.color = "white";
+        div.style.marginLeft = "auto";
 
-  // ============================
-  // WELCOME MESSAGE
-  // ============================
+      }else{
 
-  function welcome(){
-
-    const msg =
-      "Hello! How can I help you today?";
-
-    addMessage(msg,false);
-
-    speak(msg);
-
-    captureLead();
-
-  }
-
-
-  // ============================
-  // SEND MESSAGE
-  // ============================
-
-  async function sendMessage(){
-
-    const text =
-      input.value.trim();
-
-    if(!text) return;
-
-    addMessage(text,true);
-
-    input.value="";
-
-    typing();
-
-    try{
-
-      const res =
-        await fetch(API_URL + "/chat", {
-
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-            "application/json"
-          },
-
-          body:JSON.stringify({
-
-            apiKey,
-            message:text,
-            sessionId
-
-          })
-
-        });
-
-      if(!res.ok)
-        throw new Error(
-          "Server error " + res.status
-        );
-
-      const data =
-        await res.json();
-
-      removeTyping();
-
-      if(!data || !data.reply){
-
-        addMessage(
-          "Sorry, no response received.",
-          false
-        );
-
-        return;
+        div.style.background = "#e2e8f0";
 
       }
 
-      addMessage(
-        data.reply,
-        false
-      );
+      messages.appendChild(div);
 
-      speak(data.reply);
+      messages.scrollTop =
+        messages.scrollHeight;
 
     }
-    catch(err){
 
-      console.error(err);
+    // ============================
+    // TYPING
+    // ============================
 
-      removeTyping();
+    function typing(){
 
-      addMessage(
-        "Connection issue. Please try again.",
-        false
-      );
+      const div =
+        document.createElement("div");
+
+      div.innerText =
+        BRAND + " is typing...";
+
+      div.id = "typing";
+
+      div.style.opacity = "0.6";
+
+      messages.appendChild(div);
 
     }
+
+    function removeTyping(){
+
+      const t =
+        document.getElementById("typing");
+
+      if(t) t.remove();
+
+    }
+
+    // ============================
+    // VOICE
+    // ============================
+
+    function speak(text){
+
+      try{
+
+        speechSynthesis.cancel();
+
+        const speech =
+          new SpeechSynthesisUtterance(
+            text
+          );
+
+        speech.rate = 0.95;
+
+        speechSynthesis.speak(speech);
+
+      }catch{}
+
+    }
+
+    // ============================
+    // WELCOME
+    // ============================
+
+    function welcome(){
+
+      const msg =
+        "Hello! How can I help you today?";
+
+      addMessage(msg);
+
+      speak(msg);
+
+      captureLead();
+
+    }
+
+    // ============================
+    // LEAD CAPTURE
+    // ============================
+
+    function captureLead(){
+
+      if(leadCaptured) return;
+
+      leadCaptured = true;
+
+      setTimeout(()=>{
+
+        addMessage(
+          "May I have your name?"
+        );
+
+      },2000);
+
+    }
+
+    // ============================
+    // SEND MESSAGE
+    // ============================
+
+    async function sendMessage(){
+
+      const text =
+        input.value.trim();
+
+      if(!text) return;
+
+      addMessage(text,true);
+
+      input.value="";
+
+      typing();
+
+      try{
+
+        const res =
+          await fetch(
+            API_URL + "/chat",
+            {
+              method:"POST",
+              headers:{
+                "Content-Type":
+                "application/json"
+              },
+              body:JSON.stringify({
+                apiKey,
+                message:text,
+                sessionId
+              })
+            }
+          );
+
+        const data =
+          await res.json();
+
+        removeTyping();
+
+        addMessage(
+          data.reply
+          || "No response"
+        );
+
+        speak(data.reply);
+
+      }
+      catch{
+
+        removeTyping();
+
+        addMessage(
+          "Connection issue."
+        );
+
+      }
+
+    }
+
+    send.onclick =
+      sendMessage;
+
+    input.addEventListener(
+      "keypress",
+      e=>{
+        if(e.key==="Enter")
+          sendMessage();
+      }
+    );
 
   }
-
-
-  // ============================
-  // EVENTS
-  // ============================
-
-  send.onclick =
-    sendMessage;
-
-  input.addEventListener(
-    "keypress",
-    e=>{
-      if(e.key==="Enter")
-        sendMessage();
-    }
-  );
 
 })();
