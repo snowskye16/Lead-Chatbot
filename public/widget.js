@@ -32,7 +32,7 @@
       "https://lead-chatbot-gti5.onrender.com";
 
     if (!apiKey) {
-      console.error("Missing API key");
+      console.error("sk-55c2d0e8-08b3-44af-aa9c-3329efacdcd2");
       return;
     }
 
