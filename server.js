@@ -27,7 +27,10 @@ app.set("trust proxy", 1);
 // SECURITY
 // ============================
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
+
 app.use(compression());
 
 app.use(cors({
@@ -37,18 +40,50 @@ app.use(cors({
 
 app.use(express.json());
 
+// ============================
+// STATIC FILES (WIDGET, HTML, IMAGES)
+// ============================
+
 app.use(express.static(path.join(__dirname, "public")));
+
+// ============================
+// SESSION (RENDER SAFE)
+// ============================
+
+app.use(session({
+
+  name: "snowskye-session",
+
+  secret: process.env.SESSION_SECRET || "snowskye_secret",
+
+  resave: false,
+
+  saveUninitialized: false,
+
+  cookie: {
+
+    secure: false, // MUST be false on Render
+    httpOnly: true,
+
+    maxAge: 1000 * 60 * 60 * 24 * 7
+
+  }
+
+}));
 
 // ============================
 // RATE LIMIT
 // ============================
 
 const limiter = rateLimit({
+
   windowMs: 60 * 1000,
   max: 30,
+
   message: {
     reply: "Too many requests. Please slow down."
   }
+
 });
 
 app.use("/chat", limiter);
@@ -58,35 +93,11 @@ app.use("/chat", limiter);
 // ============================
 
 const cache = new NodeCache({
+
   stdTTL: 60,
   checkperiod: 120
+
 });
-
-// ============================
-// SESSION
-// ============================
-
-app.use(session({
-
-  name: "snowskye-session",
-
-  secret: process.env.SESSION_SECRET || "fallback-secret",
-
-  resave: false,
-
-  saveUninitialized: false,
-
-  cookie: {
-
-    secure: true,
-    httpOnly: true,
-    sameSite: "none",
-
-    maxAge: 1000 * 60 * 60 * 24 * 7
-
-  }
-
-}));
 
 // ============================
 // SUPABASE
@@ -136,7 +147,8 @@ async function verifyApiKey(req, res, next) {
 
     next();
 
-  } catch (err) {
+  }
+  catch (err) {
 
     console.error("API KEY ERROR:", err);
 
@@ -153,17 +165,14 @@ async function verifyApiKey(req, res, next) {
 // ============================
 
 app.get("/", (req, res) => {
+
   res.json({
+
     status: "online",
     service: "SnowSkye AI SaaS"
-  });
-});
 
-app.get("/chat", (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Use POST /chat"
   });
+
 });
 
 // ============================
@@ -212,8 +221,9 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 
       {
         role: "system",
-        content: client.ai_prompt ||
-          "You are SnowSkye AI assistant."
+        content:
+          client.ai_prompt ||
+          "You are SnowSkye AI assistant helping website visitors professionally."
       }
 
     ];
@@ -237,8 +247,10 @@ app.post("/chat", verifyApiKey, async (req, res) => {
     }
 
     messages.push({
+
       role: "user",
       content: message
+
     });
 
     // ============================
@@ -260,7 +272,7 @@ app.post("/chat", verifyApiKey, async (req, res) => {
       completion.choices[0].message.content;
 
     // ============================
-    // CACHE SAVE
+    // SAVE CACHE
     // ============================
 
     cache.set(cacheKey, reply);
@@ -284,7 +296,7 @@ app.post("/chat", verifyApiKey, async (req, res) => {
     });
 
     // ============================
-    // LEAD CAPTURE
+    // AUTO CAPTURE EMAIL LEAD
     // ============================
 
     if (validator.isEmail(message)) {
@@ -362,7 +374,8 @@ app.post("/api/register", async (req, res) => {
         email,
         password: hashed,
         api_key: apiKey,
-        ai_prompt: "You are SnowSkye AI assistant."
+        ai_prompt:
+          "You are SnowSkye AI assistant helping website visitors professionally."
 
       }]);
 
@@ -418,8 +431,10 @@ app.post("/api/login", async (req, res) => {
       });
 
     res.json({
+
       success: true,
       apiKey: client.api_key
+
     });
 
   }
@@ -434,7 +449,7 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ============================
-// START SERVER
+// START SERVER (RENDER SAFE)
 // ============================
 
 const PORT =
