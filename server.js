@@ -180,6 +180,10 @@ app.get("/", (req, res) => {
   });
 
 });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 
 // ============================
 // CHAT ENDPOINT
@@ -407,6 +411,10 @@ app.post("/api/register", async (req, res) => {
 // LOGIN
 // ============================
 
+// ============================
+// LOGIN
+// ============================
+
 app.post("/api/login", async (req, res) => {
 
   try {
@@ -437,10 +445,8 @@ app.post("/api/login", async (req, res) => {
       });
 
     res.json({
-
       success: true,
       apiKey: client.api_key
-
     });
 
   }
@@ -449,6 +455,56 @@ app.post("/api/login", async (req, res) => {
     res.json({
       success: false
     });
+
+  }
+
+});
+
+// ============================
+// SAVE LEAD ENDPOINT
+// ============================
+
+app.post("/lead", async (req, res) => {
+
+  try {
+
+    const { apiKey, message, time } = req.body;
+
+    if (!apiKey || !message)
+      return res.json({ success:false });
+
+    // find client
+    const { data: client } =
+      await supabase
+        .from("clients")
+        .select("*")
+        .eq("api_key", apiKey)
+        .single();
+
+    if (!client)
+      return res.json({ success:false });
+
+    // save lead
+    await supabase
+      .from("leads")
+      .insert([{
+
+        client_id: client.id,
+        message: message,
+        created_at: time || new Date()
+
+      }]);
+
+    console.log("NEW LEAD SAVED:", message);
+
+    res.json({ success:true });
+
+  }
+  catch(err){
+
+    console.error("LEAD SAVE ERROR:", err);
+
+    res.json({ success:false });
 
   }
 
