@@ -1,226 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-<title>SnowSkye AI Dashboard</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowSkye Dashboard</title>
 
 <style>
-
 body{
-  font-family:Arial;
-  margin:0;
-  background:#f4f6f9;
+font-family:Arial;
+background:#0f172a;
+color:white;
+padding:20px;
 }
 
-
-/* HEADER */
-.header{
-  background:#111827;
-  color:white;
-  padding:15px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+.box{
+background:#1e293b;
+padding:20px;
+margin-top:20px;
+border-radius:10px;
 }
 
-
-.header button{
-  background:#ef4444;
-}
-
-
-/* CONTAINER */
-.container{
-  padding:20px;
-}
-
-
-/* CARDS */
-.card{
-  background:white;
-  padding:20px;
-  margin-bottom:15px;
-  border-radius:10px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.1);
-}
-
-
-/* INPUT */
-input{
-  padding:10px;
-  width:200px;
-  margin-right:10px;
-  margin-top:5px;
-}
-
-
-/* BUTTON */
 button{
-  background:#2563eb;
-  color:white;
-  border:none;
-  padding:10px 15px;
-  border-radius:6px;
-  cursor:pointer;
+background:#2563eb;
+color:white;
+border:none;
+padding:10px;
+margin-top:10px;
+cursor:pointer;
 }
 
-
-/* LEAD */
-.lead{
-  padding:12px;
-  border-bottom:1px solid #eee;
+.delete{
+background:red;
 }
 
-
-/* STATS */
-.stats{
-  font-size:18px;
-  font-weight:bold;
-  color:#2563eb;
+textarea,input{
+width:100%;
+padding:10px;
+margin-top:10px;
 }
-
-
-/* CHATBOT BUTTON */
-.chatbotBtn{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  background:#2563eb;
-  padding:15px;
-  border-radius:50%;
-  color:white;
-  cursor:pointer;
-  font-size:20px;
-}
-
-
-/* CHAT */
-#chatContainer{
-  position:fixed;
-  bottom:80px;
-  right:20px;
-  width:320px;
-  height:420px;
-  background:white;
-  border-radius:10px;
-  box-shadow:0 5px 20px rgba(0,0,0,0.2);
-  display:none;
-  flex-direction:column;
-}
-
-
-#chat{
-  flex:1;
-  overflow:auto;
-  padding:10px;
-}
-
-
-.message{
-  padding:8px;
-  margin:5px;
-  border-radius:5px;
-}
-
-
-.user{
-  background:#2563eb;
-  color:white;
-}
-
-
-.bot{
-  background:#e5e7eb;
-}
-
-
-#input{
-  border:none;
-  padding:10px;
-  border-top:1px solid #eee;
-}
-
 </style>
 
 </head>
 <body>
 
+<h1>SnowSkye Dashboard</h1>
 
-<!-- HEADER -->
-<div class="header">
+<div class="box">
 
-  SnowSkye AI Client Dashboard
+<h3>Email</h3>
+<input id="email" readonly>
 
-  <button onclick="logout()">Logout</button>
-
-</div>
-
-
-
-<div class="container">
-
-
-  <!-- STATS -->
-  <div class="card">
-
-    <div class="stats">
-      Total Leads: <span id="leadCount">0</span>
-    </div>
-
-  </div>
-
-
-
-  <!-- ADD LEAD -->
-  <div class="card">
-
-    <h3>Add Lead</h3>
-
-    <input id="name" placeholder="Name">
-
-    <input id="phone" placeholder="Phone">
-
-    <button onclick="addLead()">
-      Add Lead
-    </button>
-
-  </div>
-
-
-
-  <!-- LEAD LIST -->
-  <div class="card">
-
-    <h3>Your Leads</h3>
-
-    <div id="leads"></div>
-
-  </div>
-
+<h3>API Key</h3>
+<input id="apiKey" readonly>
 
 </div>
 
 
+<div class="box">
 
-<!-- CHATBOT BUTTON -->
-<div class="chatbotBtn"
-onclick="toggleChat()">
-💬
+<h3>Edit AI Personality</h3>
+
+<textarea id="prompt"></textarea>
+
+<button onclick="savePrompt()">
+Save Prompt
+</button>
+
 </div>
 
 
+<div class="box">
 
-<!-- CHATBOT -->
-<div id="chatContainer">
+<h3>Install Code</h3>
 
-<div id="chat"></div>
+<textarea id="install"></textarea>
 
-<input
-id="input"
-placeholder="Type message..."
->
+</div>
+
+
+<div class="box">
+
+<h3>Danger Zone</h3>
+
+<button class="delete"
+onclick="deleteAccount()">
+Delete Account
+</button>
 
 </div>
 
@@ -228,86 +91,52 @@ placeholder="Type message..."
 
 <script>
 
+const API_URL =
+"https://lead-chatbot-gti5.onrender.com";
 
-// ============================
-// USER ID
-// ============================
-function getUserId(){
-
-let id =
-localStorage.getItem("userId");
-
-if(!id){
-
-id="user_"+Date.now();
-
-localStorage.setItem(
-"userId",
-id
-);
-
-}
-
-return id;
-
-}
-
-const userId = getUserId();
+const apiKey =
+localStorage.getItem("snowskye_api_key");
 
 
+// LOAD CLIENT DATA
+fetch(API_URL+"/api/get-client",{
 
-// ============================
-// LOAD LEADS
-// ============================
-async function loadLeads(){
+method:"POST",
 
-const res =
-await fetch("/api/leads");
+headers:{
+"Content-Type":"application/json"
+},
 
-const leads =
-await res.json();
+body:JSON.stringify({ apiKey })
 
-const container =
-document.getElementById("leads");
+})
+.then(res=>res.json())
+.then(data=>{
 
-container.innerHTML="";
+document.getElementById("email").value =
+data.email;
 
-document.getElementById(
-"leadCount"
-).innerText = leads.length;
+document.getElementById("apiKey").value =
+data.api_key;
 
+document.getElementById("prompt").value =
+data.ai_prompt;
 
-leads.forEach(lead=>{
-
-container.innerHTML += `
-
-<div class="lead">
-
-${lead.name} - ${lead.phone}
-
-</div>
-
-`;
+document.getElementById("install").value =
+`<script src="${API_URL}/widget.js"
+data-api-key="${apiKey}">
+</script>`;
 
 });
 
-}
 
+// SAVE PROMPT
+function savePrompt(){
 
+const ai_prompt =
+document.getElementById("prompt").value;
 
-// ============================
-// ADD LEAD
-// ============================
-async function addLead(){
-
-const name =
-document.getElementById("name").value;
-
-const phone =
-document.getElementById("phone").value;
-
-
-await fetch("/api/add-lead",{
+fetch(API_URL+"/api/update-prompt",{
 
 method:"POST",
 
@@ -317,73 +146,29 @@ headers:{
 
 body:JSON.stringify({
 
-name,
-phone,
-userId
+apiKey,
+ai_prompt
 
 })
 
+})
+.then(res=>res.json())
+.then(()=>{
+
+alert("Saved");
+
 });
 
-
-loadLeads();
-
 }
 
 
+// DELETE ACCOUNT
+function deleteAccount(){
 
-// ============================
-// CHATBOT
-// ============================
-function toggleChat(){
+if(!confirm("Are you sure?"))
+return;
 
-const chat =
-document.getElementById("chatContainer");
-
-chat.style.display =
-chat.style.display==="flex"
-?"none"
-:"flex";
-
-}
-
-
-
-function addMessage(text,type){
-
-const msg =
-document.createElement("div");
-
-msg.className =
-"message "+type;
-
-msg.innerText=text;
-
-document
-.getElementById("chat")
-.appendChild(msg);
-
-}
-
-
-
-document
-.getElementById("input")
-.addEventListener(
-"keydown",
-async e=>{
-
-if(e.key==="Enter"){
-
-const text=e.target.value;
-
-addMessage(text,"user");
-
-e.target.value="";
-
-
-const res =
-await fetch("/chat",{
+fetch(API_URL+"/api/delete-account",{
 
 method:"POST",
 
@@ -391,51 +176,24 @@ headers:{
 "Content-Type":"application/json"
 },
 
-body:JSON.stringify({
-
-message:text,
-userId
+body:JSON.stringify({ apiKey })
 
 })
+.then(()=>{
 
-});
+alert("Deleted");
 
-
-const data =
-await res.json();
-
-addMessage(
-data.reply,
-"bot"
+localStorage.removeItem(
+"snowskye_api_key"
 );
 
-}
+location.reload();
 
 });
 
-
-
-// ============================
-// LOGOUT
-// ============================
-function logout(){
-
-localStorage.clear();
-
-window.location.href="/";
-
 }
-
-
-
-// ============================
-// INIT
-// ============================
-loadLeads();
-
 
 </script>
-
 
 </body>
 </html>
