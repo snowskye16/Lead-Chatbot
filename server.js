@@ -18,15 +18,10 @@ const OpenAI = require("openai");
 
 
 // ============================
-// CREATE APP FIRST
+// CREATE APP
 // ============================
 
 const app = express();
-
-
-// ============================
-// TRUST PROXY (RENDER SAFE)
-// ============================
 
 app.set("trust proxy", 1);
 
@@ -40,6 +35,7 @@ app.use(
     contentSecurityPolicy: false
   })
 );
+
 app.use(compression());
 
 
@@ -65,14 +61,13 @@ const cache = new NodeCache({
 
 
 // ============================
-// CORS
+// MIDDLEWARE
 // ============================
 
 app.use(cors({
   origin: true,
   credentials: true
 }));
-
 
 app.use(express.json());
 
@@ -87,20 +82,17 @@ app.use(session({
 
   name: "snowskye-session",
 
-  secret: process.env.SESSION_SECRET || "fallback",
+  secret: process.env.SESSION_SECRET || "fallback-secret",
 
   resave: false,
 
   saveUninitialized: false,
 
   cookie: {
-
     secure: true,
     httpOnly: true,
     sameSite: "none",
-
     maxAge: 1000 * 60 * 60 * 24 * 7
-
   }
 
 }));
@@ -126,7 +118,7 @@ const openai = new OpenAI({
 
 
 // ============================
-// VERIFY API KEY MIDDLEWARE
+// VERIFY API KEY
 // ============================
 
 async function verifyApiKey(req, res, next) {
@@ -157,7 +149,9 @@ async function verifyApiKey(req, res, next) {
     next();
 
   }
-  catch {
+  catch (err) {
+
+    console.error("API KEY ERROR:", err);
 
     res.status(500).json({
       reply: "Verification failed"
@@ -174,10 +168,75 @@ async function verifyApiKey(req, res, next) {
 
 app.get("/", (req, res) => {
 
-  res.send("SnowSkye AI SaaS running");
+  res.send("SnowSkye AI running");
 
 });
 
+
+// ============================
+// REGISTER
+// ============================
+
+app.post("/api/register", async (req, res) => {
+
+  try {
+
+    const { email, password } = req.body;
+
+    if (!email || !password)
+      return res.json({
+        success: false,
+        error: "Missing email or password"
+      });
+
+    if (!validator.isEmail(email))
+      return res.json({
+        success: false,
+        error: "Invalid email"
+      });
+
+    const hashed =
+      await bcrypt.hash(password, 10);
+
+    const apiKey =
+      "sk-" + uuidv4();
+
+    const { error } =
+      await supabase
+        .from("clients")
+        .insert([{
+
+          email,
+          password: hashed,
+          api_key: apiKey,
+          ai_prompt:
+            "You are SnowSkye AI assistant helping customers."
+
+        }]);
+
+    if (error)
+      return res.json({
+        success: false,
+        error: error.message
+      });
+
+    res.json({
+      success: true,
+      apiKey
+    });
+
+  }
+  catch (err) {
+
+    console.error(err);
+
+    res.json({
+      success: false
+    });
+
+  }
+
+});
 
 
 // ============================
@@ -190,18 +249,17 @@ app.post("/api/login", async (req, res) => {
 
     const { email, password } = req.body;
 
-    const { data: client, error } =
-  await supabase
-    .from("clients")
-    .select("*")
-    .eq("api_key", apiKey)
-    .maybeSingle();
+    const { data: client } =
+      await supabase
+        .from("clients")
+        .select("*")
+        .eq("email", email)
+        .single();
 
-if (error || !client)
-  return res.status(401).json({
-    reply: "Invalid API key"
-  });
-
+    if (!client)
+      return res.json({
+        success: false
+      });
 
     const valid =
       await bcrypt.compare(
@@ -240,92 +298,36 @@ if (error || !client)
 
 
 // ============================
-// CHAT ENDPOINT (UPGRADED)
+// CHAT ENDPOINT
 // ============================
 
 app.post("/chat", verifyApiKey, async (req, res) => {
 
   try {
 
-    console.log("===== CHAT REQUEST START =====");
-    console.log("BODY:", req.body);
-
     const { message } = req.body;
     const client = req.client;
 
-    console.log("CLIENT:", client);
-
-    if (!message) {
-      console.log("ERROR: Empty message");
+    if (!message)
       return res.json({
         reply: "Message empty"
       });
-    }
 
-    console.log("Sending to OpenAI...");
 
-    const completion =
-      await openai.chat.completions.create({
-
-        model: "gpt-4o-mini",
-
-        messages: [
-          {
-            role: "system",
-            content:
-              client.ai_prompt ||
-              "You are SnowSkye AI assistant."
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ]
-
-      });
-
-    console.log("OpenAI success");
-
-    const reply =
-      completion.choices[0].message.content;
-
-    console.log("Reply:", reply);
-
-    res.json({
-      reply
-    });
-
-  }
-  catch (err) {
-
-    console.error("===== CHAT ERROR =====");
-    console.error(err);
-
-    res.json({
-      reply: "Server error: " + err.message
-    });
-
-  }
-
-});
-
-    // ============================
-    // CACHE CHECK
-    // ============================
-
+    // CACHE
     const cacheKey =
-      client.id + message;
+      client.id + ":" + message;
 
-    if (cache.has(cacheKey))
+    if (cache.has(cacheKey)) {
+
       return res.json({
         reply: cache.get(cacheKey)
       });
 
+    }
 
-    // ============================
-    // LOAD MEMORY
-    // ============================
 
+    // MEMORY
     const { data: history } =
       await supabase
         .from("conversations")
@@ -349,7 +351,8 @@ app.post("/chat", verifyApiKey, async (req, res) => {
     ];
 
 
-    if (history)
+    if (history) {
+
       history.reverse().forEach(item => {
 
         messages.push({
@@ -364,6 +367,8 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 
       });
 
+    }
+
 
     messages.push({
 
@@ -373,16 +378,15 @@ app.post("/chat", verifyApiKey, async (req, res) => {
     });
 
 
-    // ============================
-    // OPENAI REQUEST
-    // ============================
-
+    // OPENAI
     const completion =
       await openai.chat.completions.create({
 
         model: "gpt-4o-mini",
 
-        messages
+        messages,
+
+        temperature: 0.7
 
       });
 
@@ -391,36 +395,23 @@ app.post("/chat", verifyApiKey, async (req, res) => {
       completion.choices[0].message.content;
 
 
-    // ============================
-    // CACHE RESULT
-    // ============================
-
+    // CACHE SAVE
     cache.set(cacheKey, reply);
 
 
-    // ============================
-    // SAVE CONVERSATION (async)
-    // ============================
+    // SAVE CONVERSATION
+    await supabase
+      .from("conversations")
+      .insert([{
 
-    setImmediate(async () => {
+        client_id: client.id,
+        message,
+        reply
 
-      await supabase
-        .from("conversations")
-        .insert([{
-
-          client_id: client.id,
-          message,
-          reply
-
-        }]);
-
-    });
+      }]);
 
 
-    // ============================
-    // AUTO CAPTURE LEAD
-    // ============================
-
+    // CAPTURE LEAD
     if (validator.isEmail(message)) {
 
       await supabase
@@ -435,10 +426,7 @@ app.post("/chat", verifyApiKey, async (req, res) => {
     }
 
 
-    // ============================
     // TRACK USAGE
-    // ============================
-
     await supabase
       .from("usage")
       .insert([{
@@ -455,84 +443,20 @@ app.post("/chat", verifyApiKey, async (req, res) => {
   }
   catch (err) {
 
-  console.error("REGISTER ERROR:", err);
-
-  res.status(500).json({
-    success: false,
-    error: err.message
-  });
-
-}
-
-});
-// ============================
-// GET CLIENT DATA
-// ============================
-
-app.post("/api/register", async (req, res) => {
-
-  try {
-
-    const { email, password } = req.body;
-
-    if (!email || !password)
-      return res.json({
-        success: false,
-        error: "Missing email or password"
-      });
-
-    if (!validator.isEmail(email))
-      return res.json({
-        success: false,
-        error: "Invalid email"
-      });
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    const apiKey = "sk-" + uuidv4();
-
-    const { data, error } = await supabase
-      .from("clients")
-      .insert([{
-        email,
-        password: hashed,
-        api_key: apiKey,
-        ai_prompt: "You are SnowSkye AI helping customers."
-      }])
-      .select()
-      .single();
-
-    if (error) {
-
-      console.error("SUPABASE ERROR:", error);
-
-      return res.json({
-        success: false,
-        error: error.message
-      });
-
-    }
+    console.error("CHAT ERROR:", err);
 
     res.json({
-      success: true,
-      apiKey
+      reply:
+        "Sorry, I'm having trouble responding."
     });
 
   }
- catch (err) {
-
-  console.error("CHAT ERROR:", err);
-
-  res.json({
-    reply: "Sorry, I'm having trouble responding right now. Please try again."
-  });
-
-}
 
 });
 
+
 // ============================
-// UPDATE AI PROMPT
+// UPDATE PROMPT
 // ============================
 
 app.post("/api/update-prompt", async (req, res) => {
@@ -546,11 +470,16 @@ app.post("/api/update-prompt", async (req, res) => {
       .update({ ai_prompt })
       .eq("api_key", apiKey);
 
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
 
-  } catch {
+  }
+  catch {
 
-    res.json({ success: false });
+    res.json({
+      success: false
+    });
 
   }
 
@@ -572,30 +501,33 @@ app.post("/api/delete-account", async (req, res) => {
       .delete()
       .eq("api_key", apiKey);
 
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
 
-  } catch {
+  }
+  catch {
 
-    res.json({ success: false });
+    res.json({
+      success: false
+    });
 
   }
 
 });
 
 
-
 // ============================
-// PORT (RENDER SAFE)
+// START SERVER
 // ============================
 
 const PORT =
   process.env.PORT || 3000;
 
-
 app.listen(PORT, () => {
 
   console.log(
-    "SnowSkye SaaS running on port",
+    "SnowSkye running on port",
     PORT
   );
 
