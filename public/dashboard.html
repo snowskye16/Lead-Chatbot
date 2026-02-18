@@ -4,6 +4,7 @@
 <title>SnowSkye Dashboard</title>
 
 <style>
+
 body{
 font-family:Arial;
 background:#0f172a;
@@ -36,6 +37,21 @@ width:100%;
 padding:10px;
 margin-top:10px;
 }
+
+.lead{
+background:#020617;
+padding:15px;
+margin-top:10px;
+border-radius:8px;
+border-left:4px solid #38bdf8;
+}
+
+.time{
+color:#94a3b8;
+font-size:12px;
+margin-top:5px;
+}
+
 </style>
 
 </head>
@@ -43,6 +59,8 @@ margin-top:10px;
 
 <h1>SnowSkye Dashboard</h1>
 
+
+<!-- CLIENT INFO -->
 <div class="box">
 
 <h3>Email</h3>
@@ -54,6 +72,8 @@ margin-top:10px;
 </div>
 
 
+
+<!-- AI PROMPT -->
 <div class="box">
 
 <h3>Edit AI Personality</h3>
@@ -67,6 +87,8 @@ Save Prompt
 </div>
 
 
+
+<!-- INSTALL CODE -->
 <div class="box">
 
 <h3>Install Code</h3>
@@ -76,6 +98,21 @@ Save Prompt
 </div>
 
 
+
+<!-- LEADS SECTION -->
+<div class="box">
+
+<h3>🦷 Captured Leads</h3>
+
+<div id="leads">
+Loading leads...
+</div>
+
+</div>
+
+
+
+<!-- DELETE -->
 <div class="box">
 
 <h3>Danger Zone</h3>
@@ -98,7 +135,11 @@ const apiKey =
 localStorage.getItem("snowskye_api_key");
 
 
-// LOAD CLIENT DATA
+
+/* ===========================
+LOAD CLIENT INFO
+=========================== */
+
 fetch(API_URL+"/api/get-client",{
 
 method:"POST",
@@ -123,12 +164,73 @@ document.getElementById("prompt").value =
 data.ai_prompt;
 
 document.getElementById("install").value =
-`<scr` + `ipt src="${API_URL}/widget.js" data-api-key="${apiKey}"></scr` + `ipt>`;
+`<script src="${API_URL}/widget.js" data-api-key="${apiKey}"></script>`;
 
 });
 
 
-// SAVE PROMPT
+
+/* ===========================
+LOAD LEADS
+=========================== */
+
+function loadLeads(){
+
+fetch(API_URL+"/leads")
+.then(res=>res.json())
+.then(data=>{
+
+const container =
+document.getElementById("leads");
+
+container.innerHTML="";
+
+const clientLeads =
+data.filter(l=>l.apiKey===apiKey);
+
+if(clientLeads.length===0){
+
+container.innerHTML="No leads yet.";
+
+return;
+
+}
+
+clientLeads.reverse().forEach(lead=>{
+
+const div=document.createElement("div");
+
+div.className="lead";
+
+div.innerHTML=`
+
+<div>${lead.message.replace(/\n/g,"<br>")}</div>
+
+<div class="time">
+${new Date(lead.time).toLocaleString()}
+</div>
+
+`;
+
+container.appendChild(div);
+
+});
+
+});
+
+}
+
+
+loadLeads();
+
+setInterval(loadLeads,5000);
+
+
+
+/* ===========================
+SAVE PROMPT
+=========================== */
+
 function savePrompt(){
 
 const ai_prompt =
@@ -150,17 +252,16 @@ ai_prompt
 })
 
 })
-.then(res=>res.json())
-.then(()=>{
-
-alert("Saved");
-
-});
+.then(()=>alert("Saved"));
 
 }
 
 
-// DELETE ACCOUNT
+
+/* ===========================
+DELETE ACCOUNT
+=========================== */
+
 function deleteAccount(){
 
 if(!confirm("Are you sure?"))
