@@ -1,48 +1,69 @@
 (function(){
 
-const scriptTag = document.currentScript;
+"use strict";
 
-const apiKey = scriptTag.getAttribute("data-api-key");
-const brand = scriptTag.getAttribute("data-brand") || "Dental Clinic";
-const color = scriptTag.getAttribute("data-color") || "#0077b6";
+/* ============================
+CONFIG
+============================ */
 
-const server = scriptTag.src.replace("/widget.js","");
+const script = document.currentScript;
 
-if(!apiKey) return;
+if(!script){
+console.error("SnowSkye: Script not detected");
+return;
+}
 
-const isMobile = window.innerWidth < 500;
+const CONFIG = {
+
+apiKey: script.getAttribute("data-api-key"),
+brand: script.getAttribute("data-brand") || "Customer Support",
+color: script.getAttribute("data-color") || "#0077b6",
+logo: script.getAttribute("data-logo") || "",
+booking: script.getAttribute("data-booking") || "",
+position: script.getAttribute("data-position") || "right"
+
+};
+
+const SERVER = script.src.replace("/widget.js","");
+
+if(!CONFIG.apiKey){
+console.error("SnowSkye: Missing API key");
+return;
+}
+
+const MOBILE = window.innerWidth < 500;
 
 
 /* ============================
 VOICE SYSTEM
 ============================ */
 
-let femaleVoice=null;
+let voice = null;
 
 function loadVoice(){
 
-const voices=speechSynthesis.getVoices();
+const voices = speechSynthesis.getVoices();
 
-femaleVoice=voices.find(v=>
+voice = voices.find(v =>
 v.name.includes("Female") ||
-v.name.includes("Zira") ||
 v.name.includes("Samantha") ||
-v.name.includes("Google UK English Female")
-)||voices[0];
+v.name.includes("Zira")
+) || voices[0];
 
 }
 
-speechSynthesis.onvoiceschanged=loadVoice;
+speechSynthesis.onvoiceschanged = loadVoice;
 loadVoice();
+
 
 function speak(text){
 
-if(!femaleVoice) return;
+if(!voice) return;
 
-const msg=new SpeechSynthesisUtterance(text);
+const msg = new SpeechSynthesisUtterance(text);
 
-msg.voice=femaleVoice;
-msg.rate=0.95;
+msg.voice = voice;
+msg.rate = 0.95;
 
 speechSynthesis.cancel();
 speechSynthesis.speak(msg);
@@ -51,202 +72,238 @@ speechSynthesis.speak(msg);
 
 
 /* ============================
-LEAD FLOW STATE
+STATE
 ============================ */
 
-let leadStep=0;
+let leadStep = 0;
 
-let leadData={
+let lead = {
+
 name:"",
 phone:"",
 email:"",
 concern:""
+
 };
 
 
 /* ============================
-FLOAT BUTTON
+CREATE BUTTON WITH LOGO
 ============================ */
 
-const btn=document.createElement("div");
+const button = document.createElement("div");
 
-btn.innerHTML="🦷";
+button.innerHTML = CONFIG.logo
+? `<img src="${CONFIG.logo}" style="width:28px;height:28px;border-radius:50%">`
+: "💬";
 
-Object.assign(btn.style,{
+Object.assign(button.style,{
+
 position:"fixed",
 bottom:"20px",
-right:"20px",
-width:"65px",
-height:"65px",
-background:`linear-gradient(135deg,${color},#023e8a)`,
+[CONFIG.position]:"20px",
+width:"60px",
+height:"60px",
 borderRadius:"50%",
+background:CONFIG.color,
 display:"flex",
 justifyContent:"center",
 alignItems:"center",
-fontSize:"30px",
+color:"#fff",
+fontSize:"26px",
 cursor:"pointer",
-zIndex:"999999"
+zIndex:"999999",
+boxShadow:"0 6px 20px rgba(0,0,0,0.25)"
+
 });
 
-document.body.appendChild(btn);
+document.body.appendChild(button);
 
 
 /* ============================
 CHAT BOX
 ============================ */
 
-const box=document.createElement("div");
+const chat = document.createElement("div");
 
-Object.assign(box.style,{
+Object.assign(chat.style,{
+
 position:"fixed",
-bottom:isMobile?"0":"100px",
-right:isMobile?"0":"20px",
-width:isMobile?"100%":"360px",
-height:isMobile?"100%":"520px",
-background:"#f1f9ff",
-borderRadius:isMobile?"0":"16px",
+bottom:MOBILE?"0":"90px",
+[CONFIG.position]:MOBILE?"0":"20px",
+width:MOBILE?"100%":"350px",
+height:MOBILE?"100%":"500px",
+background:"#ffffff",
+borderRadius:MOBILE?"0":"14px",
 display:"none",
 flexDirection:"column",
-zIndex:"999999"
+overflow:"hidden",
+zIndex:"999999",
+boxShadow:"0 8px 30px rgba(0,0,0,0.2)"
+
 });
 
 
-/* HEADER */
+/* ============================
+HEADER WITH LOGO
+============================ */
 
-const header=document.createElement("div");
+const header = document.createElement("div");
 
-header.innerHTML=
-`${brand}
-<span id="close" style="float:right;cursor:pointer">✕</span>`;
+header.innerHTML = `
+<div style="display:flex;align-items:center;gap:10px;">
+${CONFIG.logo ? `<img src="${CONFIG.logo}" style="width:32px;height:32px;border-radius:50%">` : ""}
+<span style="flex:1">${CONFIG.brand}</span>
+<span id="snowClose" style="cursor:pointer;">✕</span>
+</div>
+`;
 
 Object.assign(header.style,{
-background:color,
-color:"white",
-padding:"15px",
-fontWeight:"bold"
+
+background:CONFIG.color,
+color:"#fff",
+padding:"12px",
+fontWeight:"600"
+
 });
 
 
-/* MESSAGE AREA */
+/* ============================
+MESSAGES
+============================ */
 
-const messages=document.createElement("div");
+const messages = document.createElement("div");
 
 Object.assign(messages.style,{
+
 flex:"1",
 padding:"10px",
-overflowY:"auto"
+overflowY:"auto",
+background:"#f7fbff"
+
 });
 
 
-/* INPUT AREA */
+/* ============================
+INPUT
+============================ */
 
-const inputWrap=document.createElement("div");
+const inputWrap = document.createElement("div");
 
-const inputRow=document.createElement("div");
+const inputRow = document.createElement("div");
 
 Object.assign(inputRow.style,{
 display:"flex"
 });
 
-const input=document.createElement("input");
+const input = document.createElement("input");
 
 input.placeholder="Type message...";
 
 Object.assign(input.style,{
 flex:"1",
-padding:"14px",
+padding:"12px",
 border:"none",
 outline:"none"
 });
 
+const send = document.createElement("button");
 
-const sendBtn=document.createElement("button");
+send.innerHTML="Send";
 
-sendBtn.innerHTML="Send";
-
-Object.assign(sendBtn.style,{
-padding:"14px",
-background:color,
-color:"white",
+Object.assign(send.style,{
+background:CONFIG.color,
+color:"#fff",
 border:"none",
+padding:"12px",
 cursor:"pointer"
 });
 
-
-const voiceBtn=document.createElement("button");
-
-voiceBtn.innerHTML="🎤 Talk";
-
-Object.assign(voiceBtn.style,{
-padding:"12px",
-border:"none",
-background:"#00b4d8",
-color:"white",
-width:"100%"
-});
-
-
-const bookBtn=document.createElement("button");
-
-bookBtn.innerHTML="📅 Book Appointment";
-
-Object.assign(bookBtn.style,{
-padding:"14px",
-border:"none",
-background:"#28a745",
-color:"white",
-width:"100%"
-});
-
-
 inputRow.appendChild(input);
-inputRow.appendChild(sendBtn);
+inputRow.appendChild(send);
 
 inputWrap.appendChild(inputRow);
-inputWrap.appendChild(voiceBtn);
-inputWrap.appendChild(bookBtn);
-
-box.appendChild(header);
-box.appendChild(messages);
-box.appendChild(inputWrap);
-
-document.body.appendChild(box);
 
 
-/* OPEN CLOSE */
+/* BOOK BUTTON */
 
-btn.onclick=()=>box.style.display="flex";
+if(CONFIG.booking){
 
-header.querySelector("#close").onclick=
-()=>box.style.display="none";
+const book = document.createElement("button");
+
+book.innerHTML="📅 Book Appointment";
+
+Object.assign(book.style,{
+
+width:"100%",
+background:"#28a745",
+color:"#fff",
+border:"none",
+padding:"12px",
+cursor:"pointer"
+
+});
+
+book.onclick = ()=> window.open(CONFIG.booking,"_blank");
+
+inputWrap.appendChild(book);
+
+}
+
+
+chat.appendChild(header);
+chat.appendChild(messages);
+chat.appendChild(inputWrap);
+
+document.body.appendChild(chat);
+
+
+/* ============================
+OPEN CLOSE
+============================ */
+
+button.onclick=()=>{
+
+chat.style.display="flex";
+
+};
+
+header.querySelector("#snowClose").onclick=()=>{
+
+chat.style.display="none";
+
+};
 
 
 /* ============================
 ADD MESSAGE
 ============================ */
 
-function addMessage(text,user=false){
+function add(text,user=false){
 
 const msg=document.createElement("div");
 
 msg.innerText=text;
 
 Object.assign(msg.style,{
-padding:"10px",
+
+padding:"8px",
 margin:"6px",
 borderRadius:"10px",
-maxWidth:"80%"
+maxWidth:"80%",
+fontSize:"14px"
+
 });
 
 if(user){
 
-msg.style.background=color;
-msg.style.color="white";
+msg.style.background=CONFIG.color;
+msg.style.color="#fff";
 msg.style.marginLeft="auto";
 
 }else{
 
-msg.style.background="#dff6ff";
+msg.style.background="#e9f5ff";
 
 if(text!=="Typing...")
 speak(text);
@@ -263,53 +320,10 @@ return msg;
 
 
 /* ============================
-SAVE LEAD (SERVER COMPATIBLE)
+SEND MESSAGE
 ============================ */
 
-async function saveLead(){
-
-try{
-
-const leadMessage =
-"NEW LEAD\n"+
-"Name: "+leadData.name+"\n"+
-"Phone: "+leadData.phone+"\n"+
-"Email: "+leadData.email+"\n"+
-"Concern: "+leadData.concern+"\n"+
-"Page: "+window.location.href;
-
-await fetch(server+"/lead",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({
-
-apiKey:apiKey,
-message:leadMessage,
-time:new Date().toISOString()
-
-})
-
-});
-
-}catch(e){
-
-console.log("Lead save failed",e);
-
-}
-
-}
-
-
-/* ============================
-SEND FUNCTION
-============================ */
-
-async function send(){
+async function sendMessage(){
 
 const text=input.value.trim();
 
@@ -317,71 +331,13 @@ if(!text) return;
 
 input.value="";
 
-addMessage(text,true);
+add(text,true);
 
-
-/* LEAD FLOW */
-
-if(leadStep===0){
-
-leadData.name=text;
-
-leadStep=1;
-
-addMessage("Please enter your phone number:");
-
-return;
-
-}
-
-if(leadStep===1){
-
-leadData.phone=text;
-
-leadStep=2;
-
-addMessage("Please enter your email:");
-
-return;
-
-}
-
-if(leadStep===2){
-
-leadData.email=text;
-
-leadStep=3;
-
-addMessage("What dental service do you need?");
-
-return;
-
-}
-
-if(leadStep===3){
-
-leadData.concern=text;
-
-leadStep=4;
-
-addMessage(
-"Thank you! Our clinic will contact you shortly."
-);
-
-saveLead();
-
-return;
-
-}
-
-
-/* NORMAL AI CHAT */
-
-const typing=addMessage("Typing...");
+const typing=add("Typing...");
 
 try{
 
-const res=await fetch(server+"/chat",{
+const res=await fetch(SERVER+"/chat",{
 
 method:"POST",
 
@@ -391,7 +347,7 @@ headers:{
 
 body:JSON.stringify({
 
-apiKey:apiKey,
+apiKey:CONFIG.apiKey,
 message:text
 
 })
@@ -402,81 +358,34 @@ const data=await res.json();
 
 typing.remove();
 
-addMessage(data.reply || "Server error.");
+add(data.reply || "No response.");
 
 }catch{
 
 typing.remove();
 
-addMessage("Server offline.");
+add("Server offline.");
 
 }
 
 }
 
 
-sendBtn.onclick=send;
+send.onclick=sendMessage;
 
 input.addEventListener("keypress",e=>{
-if(e.key==="Enter") send();
+if(e.key==="Enter") sendMessage();
 });
 
 
 /* ============================
-VOICE INPUT
-============================ */
-
-voiceBtn.onclick=()=>{
-
-if(!("webkitSpeechRecognition" in window)){
-
-addMessage("Voice not supported.");
-return;
-
-}
-
-const recognition=new webkitSpeechRecognition();
-
-recognition.lang="en-US";
-
-recognition.start();
-
-recognition.onresult=(e)=>{
-
-input.value=e.results[0][0].transcript;
-
-send();
-
-};
-
-};
-
-
-/* ============================
-BOOK BUTTON
-============================ */
-
-bookBtn.onclick=()=>{
-
-addMessage("Opening booking page...");
-
-window.open("https://calendly.com","_blank");
-
-};
-
-
-/* ============================
-WELCOME MESSAGE
+WELCOME
 ============================ */
 
 setTimeout(()=>{
 
-addMessage(
-"Welcome to "+brand+
-"! May I know your name?"
-);
+add("Welcome to "+CONFIG.brand+"! How can we help you?");
 
-},800);
-
+},700);
 
 })();
