@@ -401,7 +401,7 @@ app.post("/chat", verifyApiKey, async (req, res) => {
 });
 
 // ============================
-// LEAD ENDPOINT WITH EMAIL (UPGRADED)
+// LEAD ENDPOINT WITH EMAIL (FIXED)
 // ============================
 
 app.post("/lead", async (req, res) => {
@@ -413,16 +413,17 @@ app.post("/lead", async (req, res) => {
     if (!apiKey || !message)
       return res.json({ success:false });
 
-    const { data: client } =
+    const { data: client, error } =
       await supabase
         .from("clients")
         .select("*")
         .eq("api_key", apiKey)
         .single();
 
-    if (!client)
+    if (error || !client)
       return res.json({ success:false });
 
+    // Save lead to database
     await supabase
       .from("leads")
       .insert([{
@@ -433,47 +434,52 @@ app.post("/lead", async (req, res) => {
 
       }]);
 
-    // SEND EMAIL TO CLIENT
-
+    // Send email safely
     try {
 
-  await transporter.sendMail({
+      await transporter.sendMail({
 
+        from: `"SnowSkye AI" <${process.env.EMAIL_USER}>`,
 
-      from: `"SnowSkye AI" <${process.env.EMAIL_USER}>`,
+        to: client.email,
 
-      to: client.email,
+        subject: "New Website Lead",
 
-      subject: "New Website Lead",
+        html: `
 
-      html: `
+          <h2>New Lead Received</h2>
 
-        <h2>New Lead Received</h2>
+          <p><strong>Message:</strong></p>
 
-        <p><strong>Message:</strong></p>
+          <p>${message}</p>
 
-        <p>${message}</p>
+          <p><strong>Time:</strong></p>
 
-        <p><strong>Time:</strong></p>
+          <p>${new Date().toLocaleString()}</p>
 
-        <p>${new Date().toLocaleString()}</p>
+          <hr>
 
-        <hr>
+          <p>Powered by SnowSkye AI</p>
 
-        <p>Powered by SnowSkye AI</p>
+        `
 
-      `
+      });
 
-    });
+      console.log("EMAIL SENT TO:", client.email);
 
-    console.log("LEAD SAVED & EMAIL SENT");
+    }
+    catch(emailError){
+
+      console.error("EMAIL SEND FAILED:", emailError);
+
+    }
 
     res.json({ success:true });
 
   }
   catch(err){
 
-    console.error("LEAD ERROR:", err);
+    console.error("LEAD SAVE ERROR:", err);
 
     res.json({ success:false });
 
