@@ -12,41 +12,65 @@ if(!apiKey) return;
 
 const isMobile = window.innerWidth < 500;
 
-/* FEMALE VOICE */
-let femaleVoice = null;
+
+/* ============================
+VOICE SYSTEM
+============================ */
+
+let femaleVoice=null;
 
 function loadVoice(){
 
-const voices = speechSynthesis.getVoices();
+const voices=speechSynthesis.getVoices();
 
-femaleVoice = voices.find(v =>
+femaleVoice=voices.find(v=>
 v.name.includes("Female") ||
 v.name.includes("Zira") ||
 v.name.includes("Samantha") ||
 v.name.includes("Google UK English Female")
-) || voices[0];
+)||voices[0];
 
 }
 
-speechSynthesis.onvoiceschanged = loadVoice;
+speechSynthesis.onvoiceschanged=loadVoice;
 loadVoice();
 
 function speak(text){
 
-const msg = new SpeechSynthesisUtterance(text);
+if(!femaleVoice) return;
 
-msg.voice = femaleVoice;
-msg.rate = 0.95;
+const msg=new SpeechSynthesisUtterance(text);
 
+msg.voice=femaleVoice;
+msg.rate=0.95;
+
+speechSynthesis.cancel();
 speechSynthesis.speak(msg);
 
 }
 
-/* CREATE BUTTON */
 
-const btn = document.createElement("div");
+/* ============================
+LEAD FLOW STATE
+============================ */
 
-btn.innerHTML = "🦷";
+let leadStep=0;
+
+let leadData={
+name:"",
+phone:"",
+email:"",
+concern:""
+};
+
+
+/* ============================
+FLOAT BUTTON
+============================ */
+
+const btn=document.createElement("div");
+
+btn.innerHTML="🦷";
 
 Object.assign(btn.style,{
 position:"fixed",
@@ -54,21 +78,24 @@ bottom:"20px",
 right:"20px",
 width:"65px",
 height:"65px",
-background:"linear-gradient(135deg,#00b4d8,#0077b6)",
+background:`linear-gradient(135deg,${color},#023e8a)`,
 borderRadius:"50%",
 display:"flex",
 justifyContent:"center",
 alignItems:"center",
 fontSize:"30px",
 cursor:"pointer",
-zIndex:"9999"
+zIndex:"999999"
 });
 
 document.body.appendChild(btn);
 
-/* CHAT BOX */
 
-const box = document.createElement("div");
+/* ============================
+CHAT BOX
+============================ */
+
+const box=document.createElement("div");
 
 Object.assign(box.style,{
 position:"fixed",
@@ -80,27 +107,29 @@ background:"#f1f9ff",
 borderRadius:isMobile?"0":"16px",
 display:"none",
 flexDirection:"column",
-zIndex:"9999"
+zIndex:"999999"
 });
+
 
 /* HEADER */
 
-const header = document.createElement("div");
+const header=document.createElement("div");
 
-header.innerHTML =
-`🦷 ${brand}
+header.innerHTML=
+`${brand}
 <span id="close" style="float:right;cursor:pointer">✕</span>`;
 
 Object.assign(header.style,{
-background:"#0077b6",
+background:color,
 color:"white",
 padding:"15px",
 fontWeight:"bold"
 });
 
-/* MESSAGES */
 
-const messages = document.createElement("div");
+/* MESSAGE AREA */
+
+const messages=document.createElement("div");
 
 Object.assign(messages.style,{
 flex:"1",
@@ -108,45 +137,43 @@ padding:"10px",
 overflowY:"auto"
 });
 
+
 /* INPUT AREA */
 
-const inputWrap = document.createElement("div");
+const inputWrap=document.createElement("div");
 
-Object.assign(inputWrap.style,{
-display:"flex",
-flexDirection:"column"
-});
-
-const inputRow = document.createElement("div");
+const inputRow=document.createElement("div");
 
 Object.assign(inputRow.style,{
 display:"flex"
 });
 
-const input = document.createElement("input");
+const input=document.createElement("input");
 
-input.placeholder="Ask dental question...";
+input.placeholder="Type message...";
 
 Object.assign(input.style,{
 flex:"1",
 padding:"14px",
-border:"none"
+border:"none",
+outline:"none"
 });
 
-const sendBtn = document.createElement("button");
+
+const sendBtn=document.createElement("button");
 
 sendBtn.innerHTML="Send";
 
 Object.assign(sendBtn.style,{
 padding:"14px",
-background:"#0077b6",
+background:color,
 color:"white",
-border:"none"
+border:"none",
+cursor:"pointer"
 });
 
-/* VOICE BUTTON */
 
-const voiceBtn = document.createElement("button");
+const voiceBtn=document.createElement("button");
 
 voiceBtn.innerHTML="🎤 Talk";
 
@@ -158,9 +185,8 @@ color:"white",
 width:"100%"
 });
 
-/* BOOK BUTTON */
 
-const bookBtn = document.createElement("button");
+const bookBtn=document.createElement("button");
 
 bookBtn.innerHTML="📅 Book Appointment";
 
@@ -172,7 +198,6 @@ color:"white",
 width:"100%"
 });
 
-/* APPEND */
 
 inputRow.appendChild(input);
 inputRow.appendChild(sendBtn);
@@ -187,6 +212,7 @@ box.appendChild(inputWrap);
 
 document.body.appendChild(box);
 
+
 /* OPEN CLOSE */
 
 btn.onclick=()=>box.style.display="flex";
@@ -194,11 +220,14 @@ btn.onclick=()=>box.style.display="flex";
 header.querySelector("#close").onclick=
 ()=>box.style.display="none";
 
-/* MESSAGE FUNCTION */
+
+/* ============================
+ADD MESSAGE
+============================ */
 
 function addMessage(text,user=false){
 
-const msg = document.createElement("div");
+const msg=document.createElement("div");
 
 msg.innerText=text;
 
@@ -211,7 +240,7 @@ maxWidth:"80%"
 
 if(user){
 
-msg.style.background="#0077b6";
+msg.style.background=color;
 msg.style.color="white";
 msg.style.marginLeft="auto";
 
@@ -219,6 +248,7 @@ msg.style.marginLeft="auto";
 
 msg.style.background="#dff6ff";
 
+if(text!=="Typing...")
 speak(text);
 
 }
@@ -227,11 +257,26 @@ messages.appendChild(msg);
 
 messages.scrollTop=messages.scrollHeight;
 
+return msg;
+
 }
 
-/* SAVE LEAD */
 
-async function saveLead(message){
+/* ============================
+SAVE LEAD (SERVER COMPATIBLE)
+============================ */
+
+async function saveLead(){
+
+try{
+
+const leadMessage =
+"NEW LEAD\n"+
+"Name: "+leadData.name+"\n"+
+"Phone: "+leadData.phone+"\n"+
+"Email: "+leadData.email+"\n"+
+"Concern: "+leadData.concern+"\n"+
+"Page: "+window.location.href;
 
 await fetch(server+"/lead",{
 
@@ -244,16 +289,25 @@ headers:{
 body:JSON.stringify({
 
 apiKey:apiKey,
-message:message,
-time:new Date()
+message:leadMessage,
+time:new Date().toISOString()
 
 })
 
 });
 
+}catch(e){
+
+console.log("Lead save failed",e);
+
 }
 
-/* SEND MESSAGE */
+}
+
+
+/* ============================
+SEND FUNCTION
+============================ */
 
 async function send(){
 
@@ -265,7 +319,67 @@ input.value="";
 
 addMessage(text,true);
 
-addMessage("Typing...");
+
+/* LEAD FLOW */
+
+if(leadStep===0){
+
+leadData.name=text;
+
+leadStep=1;
+
+addMessage("Please enter your phone number:");
+
+return;
+
+}
+
+if(leadStep===1){
+
+leadData.phone=text;
+
+leadStep=2;
+
+addMessage("Please enter your email:");
+
+return;
+
+}
+
+if(leadStep===2){
+
+leadData.email=text;
+
+leadStep=3;
+
+addMessage("What dental service do you need?");
+
+return;
+
+}
+
+if(leadStep===3){
+
+leadData.concern=text;
+
+leadStep=4;
+
+addMessage(
+"Thank you! Our clinic will contact you shortly."
+);
+
+saveLead();
+
+return;
+
+}
+
+
+/* NORMAL AI CHAT */
+
+const typing=addMessage("Typing...");
+
+try{
 
 const res=await fetch(server+"/chat",{
 
@@ -276,21 +390,30 @@ headers:{
 },
 
 body:JSON.stringify({
+
 apiKey:apiKey,
 message:text
+
 })
 
 });
 
 const data=await res.json();
 
-messages.lastChild.remove();
+typing.remove();
 
-addMessage(data.reply);
+addMessage(data.reply || "Server error.");
 
-saveLead(text);
+}catch{
+
+typing.remove();
+
+addMessage("Server offline.");
 
 }
+
+}
+
 
 sendBtn.onclick=send;
 
@@ -298,12 +421,21 @@ input.addEventListener("keypress",e=>{
 if(e.key==="Enter") send();
 });
 
-/* VOICE INPUT */
+
+/* ============================
+VOICE INPUT
+============================ */
 
 voiceBtn.onclick=()=>{
 
-const recognition =
-new webkitSpeechRecognition();
+if(!("webkitSpeechRecognition" in window)){
+
+addMessage("Voice not supported.");
+return;
+
+}
+
+const recognition=new webkitSpeechRecognition();
 
 recognition.lang="en-US";
 
@@ -319,27 +451,32 @@ send();
 
 };
 
-/* BOOK BUTTON */
+
+/* ============================
+BOOK BUTTON
+============================ */
 
 bookBtn.onclick=()=>{
 
-addMessage(
-"Booking page opened. Please schedule your dental appointment."
-);
+addMessage("Opening booking page...");
 
-window.open(
-"https://calendly.com",
-"_blank"
-);
+window.open("https://calendly.com","_blank");
 
 };
 
-/* WELCOME */
+
+/* ============================
+WELCOME MESSAGE
+============================ */
 
 setTimeout(()=>{
+
 addMessage(
-"Hello! I'm your dental assistant. You can type or speak to me. How may I help?"
+"Welcome to "+brand+
+"! May I know your name?"
 );
+
 },800);
+
 
 })();
