@@ -3,15 +3,25 @@
 "use strict";
 
 /* ============================
-CONFIG
+GET SCRIPT SAFELY (FIXED)
 ============================ */
 
-const script = document.currentScript;
+let script = document.currentScript;
 
-if(!script){
-console.error("SnowSkye: Script not detected");
-return;
+if (!script) {
+  const scripts = document.getElementsByTagName("script");
+  script = scripts[scripts.length - 1];
 }
+
+if (!script) {
+  console.error("SnowSkye: Script not detected");
+  return;
+}
+
+
+/* ============================
+CONFIG
+============================ */
 
 const CONFIG = {
 
@@ -24,7 +34,7 @@ position: script.getAttribute("data-position") || "right"
 
 };
 
-const SERVER = script.src.replace("/widget.js","");
+const SERVER = new URL(script.src).origin;
 
 if(!CONFIG.apiKey){
 console.error("SnowSkye: Missing API key");
@@ -72,23 +82,7 @@ speechSynthesis.speak(msg);
 
 
 /* ============================
-STATE
-============================ */
-
-let leadStep = 0;
-
-let lead = {
-
-name:"",
-phone:"",
-email:"",
-concern:""
-
-};
-
-
-/* ============================
-CREATE BUTTON WITH LOGO
+CREATE BUTTON
 ============================ */
 
 const button = document.createElement("div");
@@ -98,7 +92,6 @@ button.innerHTML = CONFIG.logo
 : "💬";
 
 Object.assign(button.style,{
-
 position:"fixed",
 bottom:"20px",
 [CONFIG.position]:"20px",
@@ -114,7 +107,6 @@ fontSize:"26px",
 cursor:"pointer",
 zIndex:"999999",
 boxShadow:"0 6px 20px rgba(0,0,0,0.25)"
-
 });
 
 document.body.appendChild(button);
@@ -127,7 +119,6 @@ CHAT BOX
 const chat = document.createElement("div");
 
 Object.assign(chat.style,{
-
 position:"fixed",
 bottom:MOBILE?"0":"90px",
 [CONFIG.position]:MOBILE?"0":"20px",
@@ -140,13 +131,10 @@ flexDirection:"column",
 overflow:"hidden",
 zIndex:"999999",
 boxShadow:"0 8px 30px rgba(0,0,0,0.2)"
-
 });
 
 
-/* ============================
-HEADER WITH LOGO
-============================ */
+/* HEADER */
 
 const header = document.createElement("div");
 
@@ -159,42 +147,32 @@ ${CONFIG.logo ? `<img src="${CONFIG.logo}" style="width:32px;height:32px;border-
 `;
 
 Object.assign(header.style,{
-
 background:CONFIG.color,
 color:"#fff",
 padding:"12px",
 fontWeight:"600"
-
 });
 
 
-/* ============================
-MESSAGES
-============================ */
+/* MESSAGES */
 
 const messages = document.createElement("div");
 
 Object.assign(messages.style,{
-
 flex:"1",
 padding:"10px",
 overflowY:"auto",
 background:"#f7fbff"
-
 });
 
 
-/* ============================
-INPUT
-============================ */
+/* INPUT */
 
 const inputWrap = document.createElement("div");
 
 const inputRow = document.createElement("div");
 
-Object.assign(inputRow.style,{
-display:"flex"
-});
+Object.assign(inputRow.style,{display:"flex"});
 
 const input = document.createElement("input");
 
@@ -221,7 +199,6 @@ cursor:"pointer"
 
 inputRow.appendChild(input);
 inputRow.appendChild(send);
-
 inputWrap.appendChild(inputRow);
 
 
@@ -234,14 +211,12 @@ const book = document.createElement("button");
 book.innerHTML="📅 Book Appointment";
 
 Object.assign(book.style,{
-
 width:"100%",
 background:"#28a745",
 color:"#fff",
 border:"none",
 padding:"12px",
 cursor:"pointer"
-
 });
 
 book.onclick = ()=> window.open(CONFIG.booking,"_blank");
@@ -250,7 +225,6 @@ inputWrap.appendChild(book);
 
 }
 
-
 chat.appendChild(header);
 chat.appendChild(messages);
 chat.appendChild(inputWrap);
@@ -258,26 +232,16 @@ chat.appendChild(inputWrap);
 document.body.appendChild(chat);
 
 
-/* ============================
-OPEN CLOSE
-============================ */
+/* OPEN CLOSE */
 
-button.onclick=()=>{
-
-chat.style.display="flex";
-
-};
+button.onclick=()=> chat.style.display="flex";
 
 header.querySelector("#snowClose").onclick=()=>{
-
 chat.style.display="none";
-
 };
 
 
-/* ============================
-ADD MESSAGE
-============================ */
+/* ADD MESSAGE */
 
 function add(text,user=false){
 
@@ -286,32 +250,23 @@ const msg=document.createElement("div");
 msg.innerText=text;
 
 Object.assign(msg.style,{
-
 padding:"8px",
 margin:"6px",
 borderRadius:"10px",
 maxWidth:"80%",
 fontSize:"14px"
-
 });
 
 if(user){
-
 msg.style.background=CONFIG.color;
 msg.style.color="#fff";
 msg.style.marginLeft="auto";
-
 }else{
-
 msg.style.background="#e9f5ff";
-
-if(text!=="Typing...")
-speak(text);
-
+if(text!=="Typing...") speak(text);
 }
 
 messages.appendChild(msg);
-
 messages.scrollTop=messages.scrollHeight;
 
 return msg;
@@ -319,9 +274,7 @@ return msg;
 }
 
 
-/* ============================
-SEND MESSAGE
-============================ */
+/* SEND MESSAGE */
 
 async function sendMessage(){
 
@@ -330,7 +283,6 @@ const text=input.value.trim();
 if(!text) return;
 
 input.value="";
-
 add(text,true);
 
 const typing=add("Typing...");
@@ -340,16 +292,11 @@ try{
 const res=await fetch(SERVER+"/chat",{
 
 method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
+headers:{ "Content-Type":"application/json" },
 
 body:JSON.stringify({
-
 apiKey:CONFIG.apiKey,
 message:text
-
 })
 
 });
@@ -370,7 +317,6 @@ add("Server offline.");
 
 }
 
-
 send.onclick=sendMessage;
 
 input.addEventListener("keypress",e=>{
@@ -378,14 +324,10 @@ if(e.key==="Enter") sendMessage();
 });
 
 
-/* ============================
-WELCOME
-============================ */
+/* WELCOME */
 
 setTimeout(()=>{
-
 add("Welcome to "+CONFIG.brand+"! How can we help you?");
-
 },700);
 
 })();
