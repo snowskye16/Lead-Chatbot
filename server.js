@@ -27,9 +27,7 @@ app.set("trust proxy", 1);
 // SECURITY
 // ===================================
 
-app.use(helmet({
-  contentSecurityPolicy: false
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use(cors({
   origin: true,
@@ -38,9 +36,7 @@ app.use(cors({
 
 app.use(compression());
 
-app.use(express.json({
-  limit: "1mb"
-}));
+app.use(express.json({ limit: "1mb" }));
 
 // ===================================
 // STATIC FILES
@@ -56,21 +52,15 @@ app.use(session({
 
   name: "snowskye-session",
 
-  secret:
-    process.env.SESSION_SECRET ||
-    "snowskye_secret",
+  secret: process.env.SESSION_SECRET || "snowskye_secret",
 
   resave: false,
   saveUninitialized: false,
 
   cookie: {
-
     secure: false,
     httpOnly: true,
-
-    maxAge:
-      7 * 24 * 60 * 60 * 1000
-
+    maxAge: 7 * 24 * 60 * 60 * 1000
   }
 
 }));
@@ -82,15 +72,10 @@ app.use(session({
 const limiter = rateLimit({
 
   windowMs: 60 * 1000,
-
   max: 30,
 
-  standardHeaders: true,
-  legacyHeaders: false,
-
   message: {
-    reply:
-      "Too many requests. Please slow down."
+    reply: "Too many requests. Please slow down."
   }
 
 });
@@ -103,10 +88,7 @@ app.use("/lead", limiter);
 // ===================================
 
 const cache = new NodeCache({
-
-  stdTTL: 60,
-  checkperiod: 120
-
+  stdTTL: 60
 });
 
 // ===================================
@@ -114,10 +96,8 @@ const cache = new NodeCache({
 // ===================================
 
 const supabase = createClient(
-
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
-
 );
 
 // ===================================
@@ -125,42 +105,33 @@ const supabase = createClient(
 // ===================================
 
 const openai = new OpenAI({
-
-  apiKey:
-    process.env.OPENAI_API_KEY
-
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 // ===================================
-// EMAIL SYSTEM
+// EMAIL
 // ===================================
 
-const transporter =
-  nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
 
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
 
-    auth: {
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
 
-      user:
-        process.env.EMAIL_USER,
-
-      pass:
-        process.env.EMAIL_PASS
-
-    }
-
-  });
+});
 
 transporter.verify(err => {
 
   if (err)
-    console.log("Email not ready");
+    console.log("Email system not ready");
 
   else
-    console.log("Email ready");
+    console.log("Email system ready");
 
 });
 
@@ -168,31 +139,26 @@ transporter.verify(err => {
 // VERIFY API KEY
 // ===================================
 
-async function verifyApiKey(
-  req, res, next
-){
+async function verifyApiKey(req, res, next) {
 
-  try{
+  try {
 
     const { apiKey } = req.body;
 
-    if(!apiKey)
-      return res.status(401)
-      .json({
-        reply:"Missing API key"
+    if (!apiKey)
+      return res.status(401).json({
+        reply: "Missing API key"
       });
 
-    const { data: client }
-      = await supabase
+    const { data: client } = await supabase
       .from("clients")
       .select("*")
       .eq("api_key", apiKey)
       .single();
 
-    if(!client)
-      return res.status(401)
-      .json({
-        reply:"Invalid API key"
+    if (!client)
+      return res.status(401).json({
+        reply: "Invalid API key"
       });
 
     req.client = client;
@@ -200,11 +166,10 @@ async function verifyApiKey(
     next();
 
   }
-  catch{
+  catch {
 
-    res.status(500)
-    .json({
-      reply:"Verification failed"
+    res.status(500).json({
+      reply: "API verification failed"
     });
 
   }
@@ -212,24 +177,22 @@ async function verifyApiKey(
 }
 
 // ===================================
-// HEALTH CHECK
+// HEALTH
 // ===================================
 
-app.get("/", (req,res)=>{
+app.get("/", (req, res) => {
 
   res.json({
-
-    status:"online",
-    service:"SnowSkye AI SaaS"
-
+    status: "online",
+    service: "SnowSkye AI"
   });
 
 });
 
-app.get("/health",(req,res)=>{
+app.get("/health", (req, res) => {
 
   res.json({
-    status:"ok"
+    status: "ok"
   });
 
 });
@@ -238,314 +201,223 @@ app.get("/health",(req,res)=>{
 // CHAT ENDPOINT
 // ===================================
 
-app.post(
-"/chat",
-verifyApiKey,
+app.post("/chat", verifyApiKey, async (req, res) => {
 
-async (req,res)=>{
+  try {
 
-try{
+    const { message } = req.body;
+    const client = req.client;
 
-  const { message } = req.body;
+    if (!message)
+      return res.json({
+        reply: "Please enter a message."
+      });
 
-  const client =
-    req.client;
+    const text = message.trim();
 
-  if(!message)
-    return res.json({
-      reply:"Please enter a message."
-    });
+    const cacheKey =
+      client.id + "_" + text.toLowerCase();
 
-  const text =
-    message.trim();
+    if (cache.has(cacheKey))
+      return res.json({
+        reply: cache.get(cacheKey)
+      });
 
-  const cacheKey =
-    client.id + "_" +
-    text.toLowerCase();
+    // SYSTEM PROMPT
 
-  if(cache.has(cacheKey))
-    return res.json({
-      reply:
-        cache.get(cacheKey)
-    });
-
-  // ===================================
-  // SYSTEM PROMPT
-  // ===================================
-
-  let systemPrompt = `
+    let systemPrompt = `
 
 You are SnowSkye AI,
-a professional business assistant.
+a professional AI business assistant.
 
 Goals:
 
-• Help customers
+• Help customers professionally
 • Encourage booking
 • Capture leads
-• Answer professionally
-• Confirm appointments
+• Answer clearly
 • Stay friendly
 
-If user books appointment:
-congratulate them and offer help.
+If customer books,
+congratulate them and assist further.
 
 `;
 
-  if(client.ai_prompt)
-    systemPrompt =
-      client.ai_prompt;
+    if (client.ai_prompt)
+      systemPrompt = client.ai_prompt;
 
-  // ===================================
-  // LOAD HISTORY
-  // ===================================
+    // LOAD HISTORY
 
-  const { data: history }
-    = await supabase
-    .from("conversations")
-    .select("message,reply")
-    .eq("client_id",
-        client.id)
-    .order("created_at",
-        {ascending:false})
-    .limit(5);
+    const { data: history } = await supabase
+      .from("conversations")
+      .select("message,reply")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-  const messages = [
+    const messages = [
+      { role: "system", content: systemPrompt }
+    ];
 
-    {
-      role:"system",
-      content:systemPrompt
+    if (history) {
+
+      history.reverse().forEach(h => {
+
+        messages.push({
+          role: "user",
+          content: h.message
+        });
+
+        messages.push({
+          role: "assistant",
+          content: h.reply
+        });
+
+      });
+
     }
 
-  ];
-
-  if(history){
-
-    history.reverse()
-    .forEach(h=>{
-
-      messages.push({
-        role:"user",
-        content:h.message
-      });
-
-      messages.push({
-        role:"assistant",
-        content:h.reply
-      });
-
+    messages.push({
+      role: "user",
+      content: text
     });
 
-  }
+    // OPENAI
 
-  messages.push({
+    const completion =
+      await openai.chat.completions.create({
 
-    role:"user",
-    content:text
+        model: "gpt-4o-mini",
 
-  });
+        messages,
 
-  // ===================================
-  // OPENAI REQUEST
-  // ===================================
+        temperature: 0.7
 
-  const completion =
-    await openai
-    .chat.completions.create({
+      });
 
-      model:"gpt-4o-mini",
+    const reply =
+      completion.choices[0].message.content;
 
-      messages,
+    cache.set(cacheKey, reply);
 
-      temperature:0.7
-
-    });
-
-  const reply =
-    completion
-    .choices[0]
-    .message.content;
-
-  cache.set(
-    cacheKey,
-    reply
-  );
-
-  // ===================================
-  // SAVE CONVERSATION
-  // ===================================
-
-  await supabase
-  .from("conversations")
-  .insert([{
-
-    client_id:
-      client.id,
-
-    message:text,
-
-    reply,
-
-    created_at:
-      new Date()
-      .toISOString()
-
-  }]);
-
-  // ===================================
-  // SAVE EMAIL LEAD
-  // ===================================
-
-  if(
-    validator
-    .isEmail(text)
-  ){
+    // SAVE CONVERSATION
 
     await supabase
-    .from("leads")
-    .insert([{
+      .from("conversations")
+      .insert([{
 
-      client_id:
-        client.id,
+        client_id: client.id,
+        message: text,
+        reply,
+        created_at: new Date().toISOString()
 
-      email:text,
+      }]);
 
-      created_at:
-        new Date()
-        .toISOString()
+    // SAVE EMAIL LEAD
 
-    }]);
+    if (validator.isEmail(text)) {
+
+      await supabase
+        .from("leads")
+        .insert([{
+
+          client_id: client.id,
+          email: text,
+          created_at: new Date().toISOString()
+
+        }]);
+
+    }
+
+    // TRACK USAGE
+
+    await supabase
+      .from("usage")
+      .insert([{
+
+        client_id: client.id,
+        created_at: new Date().toISOString()
+
+      }]);
+
+    res.json({ reply });
 
   }
+  catch (err) {
 
-  // ===================================
-  // TRACK USAGE
-  // ===================================
+    console.log(err);
 
-  await supabase
-  .from("usage")
-  .insert([{
+    res.status(500).json({
+      reply: "AI temporarily unavailable."
+    });
 
-    client_id:
-      client.id,
-
-    created_at:
-      new Date()
-      .toISOString()
-
-  }]);
-
-  res.json({
-    reply
-  });
-
-}
-catch(err){
-
-  console.error(err);
-
-  res.status(500)
-  .json({
-    reply:
-    "AI temporarily unavailable."
-  });
-
-}
+  }
 
 });
 
 // ===================================
-// BOOKING / LEAD ENDPOINT
+// LEAD / BOOKING
 // ===================================
 
-app.post("/lead", async
-(req,res)=>{
+app.post("/lead", async (req, res) => {
 
-try{
+  try {
 
-  const {
-    apiKey,
-    message
-  } = req.body;
+    const { apiKey, message } = req.body;
 
-  if(!apiKey)
-    return res.json({
-      success:false
-    });
+    if (!apiKey)
+      return res.json({ success: false });
 
-  const { data: client }
-    = await supabase
-    .from("clients")
-    .select("*")
-    .eq("api_key",
-        apiKey)
-    .single();
+    const { data: client } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("api_key", apiKey)
+      .single();
 
-  if(!client)
-    return res.json({
-      success:false
-    });
+    if (!client)
+      return res.json({ success: false });
 
-  await supabase
-  .from("leads")
-  .insert([{
+    await supabase
+      .from("leads")
+      .insert([{
 
-    client_id:
-      client.id,
+        client_id: client.id,
+        message,
+        created_at: new Date().toISOString()
 
-    message,
+      }]);
 
-    created_at:
-      new Date()
-      .toISOString()
+    // EMAIL
 
-  }]);
+    try {
 
-  // EMAIL NOTIFY
+      await transporter.sendMail({
 
-  try{
+        from: `"SnowSkye AI" <${process.env.EMAIL_USER}>`,
+        to: client.email,
 
-    await transporter
-    .sendMail({
+        subject: "New Booking Lead",
 
-      from:
-      `"SnowSkye AI" <${process.env.EMAIL_USER}>`,
+        html: `
+        <h2>New Booking Lead</h2>
+        <p>${message}</p>
+        <hr>
+        SnowSkye AI
+        `
 
-      to:
-        client.email,
+      });
 
-      subject:
-        "New Booking Lead",
+    }
+    catch { }
 
-      html:`
-
-<h2>New Lead</h2>
-
-<p>${message}</p>
-
-<hr>
-
-SnowSkye AI
-
-`
-
-    });
+    res.json({ success: true });
 
   }
-  catch{}
+  catch {
 
-  res.json({
-    success:true
-  });
+    res.json({ success: false });
 
-}
-catch{
-
-  res.json({
-    success:false
-  });
-
-}
+  }
 
 });
 
@@ -553,66 +425,43 @@ catch{
 // REGISTER
 // ===================================
 
-app.post(
-"/api/register",
+app.post("/api/register", async (req, res) => {
 
-async (req,res)=>{
+  try {
 
-try{
+    const { email, password } = req.body;
 
-  const {
-    email,
-    password
-  } = req.body;
+    if (!validator.isEmail(email))
+      return res.json({ success: false });
 
-  if(
-    !validator
-    .isEmail(email)
-  )
-    return res.json({
-      success:false
+    const hash = await bcrypt.hash(password, 10);
+
+    const apiKey = "sk-" + uuidv4();
+
+    await supabase
+      .from("clients")
+      .insert([{
+
+        email,
+        password: hash,
+        api_key: apiKey,
+        created_at: new Date().toISOString()
+
+      }]);
+
+    res.json({
+      success: true,
+      apiKey
     });
 
-  const hash =
-    await bcrypt.hash(
-      password,10
-    );
+  }
+  catch {
 
-  const apiKey =
-    "sk-" +
-    uuidv4();
+    res.json({
+      success: false
+    });
 
-  await supabase
-  .from("clients")
-  .insert([{
-
-    email,
-
-    password:hash,
-
-    api_key:apiKey,
-
-    created_at:
-      new Date()
-      .toISOString()
-
-  }]);
-
-  res.json({
-
-    success:true,
-    apiKey
-
-  });
-
-}
-catch{
-
-  res.json({
-    success:false
-  });
-
-}
+  }
 
 });
 
@@ -620,60 +469,45 @@ catch{
 // LOGIN
 // ===================================
 
-app.post(
-"/api/login",
+app.post("/api/login", async (req, res) => {
 
-async (req,res)=>{
+  try {
 
-try{
+    const { email, password } = req.body;
 
-  const {
-    email,
-    password
-  } = req.body;
+    const { data: client } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("email", email)
+      .single();
 
-  const { data: client }
-    = await supabase
-    .from("clients")
-    .select("*")
-    .eq("email",
-        email)
-    .single();
+    if (!client)
+      return res.json({ success: false });
 
-  if(!client)
-    return res.json({
-      success:false
+    const valid =
+      await bcrypt.compare(
+        password,
+        client.password
+      );
+
+    if (!valid)
+      return res.json({ success: false });
+
+    res.json({
+
+      success: true,
+      apiKey: client.api_key
+
     });
 
-  const valid =
-    await bcrypt
-    .compare(
-      password,
-      client.password
-    );
+  }
+  catch {
 
-  if(!valid)
-    return res.json({
-      success:false
+    res.json({
+      success: false
     });
 
-  res.json({
-
-    success:true,
-
-    apiKey:
-      client.api_key
-
-  });
-
-}
-catch{
-
-  res.json({
-    success:false
-  });
-
-}
+  }
 
 });
 
@@ -682,10 +516,9 @@ catch{
 // ===================================
 
 const PORT =
-  process.env.PORT ||
-  3000;
+  process.env.PORT || 3000;
 
-app.listen(PORT, ()=>{
+app.listen(PORT, () => {
 
   console.log(
     "SnowSkye AI running on port",
