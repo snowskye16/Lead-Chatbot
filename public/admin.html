@@ -2,108 +2,121 @@
 <html>
 <head>
 
-<title>SnowSkye AI Admin</title>
+<title>SnowSkye AI Dashboard</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 body{
-  background:#0f172a;
-  color:#f1f5f9;
-  font-family:Arial;
-  margin:0;
-  padding:20px;
+background:#020617;
+color:#f1f5f9;
+font-family:Arial;
+margin:0;
+padding:20px;
 }
 
-
-/* HEADER */
 .header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:20px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:20px;
 }
-
 
 h1{
-  margin:0;
+margin:0;
+color:#38bdf8;
 }
-
-
-/* BUTTONS */
-button{
-  border:none;
-  padding:8px 14px;
-  border-radius:6px;
-  cursor:pointer;
-}
-
-
-.export{
-  background:#22c55e;
-  color:white;
-}
-
-
-.logout{
-  background:#334155;
-  color:white;
-}
-
-
-/* SEARCH */
-.searchBox{
-  margin-bottom:15px;
-}
-
-
-input{
-  padding:10px;
-  border-radius:6px;
-  border:none;
-  width:250px;
-}
-
-
-/* TABLE */
-table{
-  width:100%;
-  border-collapse:collapse;
-  background:#1e293b;
-  border-radius:10px;
-  overflow:hidden;
-}
-
-
-th{
-  background:#111827;
-  padding:12px;
-  text-align:left;
-}
-
-
-td{
-  padding:12px;
-  border-bottom:1px solid #334155;
-}
-
-
-tr:hover{
-  background:#334155;
-}
-
-
-/* DELETE BUTTON */
-.delete{
-  background:#ef4444;
-  color:white;
-}
-
 
 .count{
-  margin-bottom:10px;
-  color:#94a3b8;
+color:#94a3b8;
+margin-top:5px;
+}
+
+button{
+border:none;
+padding:10px 16px;
+border-radius:6px;
+cursor:pointer;
+font-weight:600;
+}
+
+.export{
+background:#22c55e;
+color:white;
+}
+
+.logout{
+background:#334155;
+color:white;
+}
+
+.searchBox{
+margin-bottom:15px;
+}
+
+input{
+padding:12px;
+border-radius:6px;
+border:none;
+width:300px;
+background:#1e293b;
+color:white;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+background:#0f172a;
+border-radius:10px;
+overflow:hidden;
+}
+
+th{
+background:#020617;
+padding:14px;
+text-align:left;
+color:#38bdf8;
+}
+
+td{
+padding:14px;
+border-bottom:1px solid #1e293b;
+}
+
+tr:hover{
+background:#1e293b;
+}
+
+.delete{
+background:#ef4444;
+color:white;
+}
+
+.message{
+color:#94a3b8;
+font-size:13px;
+margin-top:4px;
+}
+
+.loginBox{
+max-width:400px;
+margin:100px auto;
+background:#0f172a;
+padding:30px;
+border-radius:12px;
+text-align:center;
+}
+
+.loginBox input{
+width:100%;
+margin-bottom:10px;
+}
+
+.loginBox button{
+width:100%;
+background:#38bdf8;
+color:black;
 }
 
 </style>
@@ -111,12 +124,23 @@ tr:hover{
 </head>
 <body>
 
+<div id="loginView" class="loginBox">
 
-<!-- HEADER -->
+<h2>SnowSkye Admin Login</h2>
+
+<input id="apiKey" placeholder="Enter your API key">
+
+<button onclick="login()">Login</button>
+
+</div>
+
+
+<div id="dashboard" style="display:none;">
+
 <div class="header">
 
 <div>
-<h1>SnowSkye AI Admin</h1>
+<h1>SnowSkye AI Dashboard</h1>
 <div class="count">
 Total Leads: <span id="count">0</span>
 </div>
@@ -124,13 +148,11 @@ Total Leads: <span id="count">0</span>
 
 <div>
 
-<button class="export"
-onclick="exportCSV()">
+<button class="export" onclick="exportCSV()">
 Export CSV
 </button>
 
-<button class="logout"
-onclick="logout()">
+<button class="logout" onclick="logout()">
 Logout
 </button>
 
@@ -139,61 +161,101 @@ Logout
 </div>
 
 
-
-<!-- SEARCH -->
 <div class="searchBox">
 
-<input
-id="search"
-placeholder="Search name or email..."
-oninput="filterLeads()"
-/>
+<input id="search"
+placeholder="Search email or message..."
+oninput="filterLeads()">
 
 </div>
 
 
-
-<!-- TABLE -->
 <table>
 
 <thead>
-
 <tr>
-
-<th>Name</th>
 <th>Email</th>
+<th>Message</th>
 <th>Date</th>
 <th>Action</th>
-
 </tr>
-
 </thead>
 
-<tbody id="table">
-
-</tbody>
+<tbody id="table"></tbody>
 
 </table>
 
+</div>
 
 
 <script>
 
+let API_KEY = localStorage.getItem("snow_api_key");
 
 let allLeads = [];
 
 
+/* ==========================
+LOGIN
+========================== */
 
-// ==========================
-// LOAD LEADS
-// ==========================
+function login(){
+
+const key = document.getElementById("apiKey").value.trim();
+
+if(!key) return alert("Enter API key");
+
+localStorage.setItem("snow_api_key", key);
+
+API_KEY = key;
+
+init();
+
+}
+
+
+/* ==========================
+INIT
+========================== */
+
+function init(){
+
+if(!API_KEY){
+
+document.getElementById("loginView").style.display="block";
+return;
+
+}
+
+document.getElementById("loginView").style.display="none";
+document.getElementById("dashboard").style.display="block";
+
+loadLeads();
+
+}
+
+
+/* ==========================
+LOAD LEADS
+========================== */
+
 async function loadLeads(){
 
-const res =
-await fetch("/api/leads");
+const res = await fetch("/api/leads",{
 
-const leads =
-await res.json();
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+apiKey:API_KEY
+})
+
+});
+
+const leads = await res.json();
 
 allLeads = leads;
 
@@ -202,56 +264,45 @@ render(leads);
 }
 
 
+/* ==========================
+RENDER
+========================== */
 
-// ==========================
-// RENDER TABLE
-// ==========================
 function render(leads){
 
-document.getElementById(
-"count"
-).innerText = leads.length;
+document.getElementById("count").innerText = leads.length;
 
+const table = document.getElementById("table");
 
-const table =
-document.getElementById("table");
-
-table.innerHTML = "";
-
+table.innerHTML="";
 
 if(leads.length===0){
 
-table.innerHTML =
-"<tr><td colspan='4'>No leads found</td></tr>";
-
+table.innerHTML="<tr><td colspan='4'>No leads found</td></tr>";
 return;
 
 }
 
-
 leads.forEach(lead=>{
 
-const row =
-document.createElement("tr");
+const row=document.createElement("tr");
 
-
-row.innerHTML = `
-
-<td>${lead.name || "-"}</td>
+row.innerHTML=`
 
 <td>${lead.email || "-"}</td>
 
-<td>${new Date(
-lead.created_at
-).toLocaleString()}</td>
+<td>
+<div>${lead.message || "-"}</div>
+<div class="message">${lead.name || ""}</div>
+</td>
+
+<td>${new Date(lead.created_at).toLocaleString()}</td>
 
 <td>
-
 <button class="delete"
 onclick="deleteLead('${lead.id}')">
 Delete
 </button>
-
 </td>
 
 `;
@@ -263,22 +314,18 @@ table.appendChild(row);
 }
 
 
+/* ==========================
+FILTER
+========================== */
 
-// ==========================
-// FILTER
-// ==========================
 function filterLeads(){
 
-const q =
-document.getElementById("search")
-.value.toLowerCase();
+const q=document.getElementById("search").value.toLowerCase();
 
+const filtered=allLeads.filter(l=>
 
-const filtered =
-allLeads.filter(l =>
-
-l.name?.toLowerCase().includes(q) ||
-l.email?.toLowerCase().includes(q)
+(l.email || "").toLowerCase().includes(q) ||
+(l.message || "").toLowerCase().includes(q)
 
 );
 
@@ -287,61 +334,49 @@ render(filtered);
 }
 
 
+/* ==========================
+DELETE
+========================== */
 
-// ==========================
-// DELETE LEAD
-// ==========================
 async function deleteLead(id){
 
-if(!confirm("Delete lead?"))
-return;
+if(!confirm("Delete lead?")) return;
 
-
-await fetch(
-"/admin/delete/" + id,
-{
+await fetch("/admin/delete/"+id,{
 method:"POST"
-}
-);
+});
 
 loadLeads();
 
 }
 
 
+/* ==========================
+EXPORT
+========================== */
 
-// ==========================
-// EXPORT CSV
-// ==========================
 function exportCSV(){
 
-window.location =
-"/admin/export";
+window.open("/admin/export");
 
 }
 
 
+/* ==========================
+LOGOUT
+========================== */
 
-// ==========================
-// LOGOUT
-// ==========================
 function logout(){
 
-window.location =
-"/logout";
+localStorage.removeItem("snow_api_key");
+location.reload();
 
 }
 
 
-
-// ==========================
-// INIT
-// ==========================
-loadLeads();
-
+init();
 
 </script>
-
 
 </body>
 </html>
