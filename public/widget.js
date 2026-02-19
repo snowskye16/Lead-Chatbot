@@ -15,7 +15,7 @@ return;
 
 const CONFIG = {
 
-apiKey: script.getAttribute("data-api-key"),
+apiKey: script.getAttribute("data-api-key")?.trim(),
 brand: script.getAttribute("data-brand") || "Customer Support",
 color: script.getAttribute("data-color") || "#0077b6",
 logo: script.getAttribute("data-logo") || "",

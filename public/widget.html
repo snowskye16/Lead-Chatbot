@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>SnowSkye AI</title>
+<title>SnowSkye AI Chatbot</title>
 
 <style>
 
@@ -30,11 +30,12 @@ justify-content:center;
 cursor:pointer;
 box-shadow:0 10px 25px rgba(0,0,0,0.3);
 z-index:999999;
-transition:.3s;
 }
 
 #btn img{
-width:28px;
+width:30px;
+height:30px;
+border-radius:50%;
 }
 
 /* BADGE */
@@ -68,11 +69,9 @@ box-shadow:0 15px 50px rgba(0,0,0,0.3);
 display:none;
 flex-direction:column;
 overflow:hidden;
-animation:fadeIn .25s;
 }
 
 @media(max-width:600px){
-
 #chat{
 width:100%;
 height:100%;
@@ -80,7 +79,6 @@ bottom:0;
 right:0;
 border-radius:0;
 }
-
 }
 
 /* HEADER */
@@ -102,6 +100,7 @@ gap:10px;
 
 #header img{
 height:32px;
+border-radius:50%;
 }
 
 #close{
@@ -194,11 +193,6 @@ animation:blink 1.4s infinite;
 40%{opacity:1}
 }
 
-@keyframes fadeIn{
-from{opacity:0;transform:translateY(10px)}
-to{opacity:1;transform:translateY(0)}
-}
-
 </style>
 
 </head>
@@ -208,12 +202,11 @@ to{opacity:1;transform:translateY(0)}
 
 <div id="btn">
 
-<img src="/logo.png">
+<img src="https://lead-chatbot-gti5.onrender.com/logo.png">
 
 <div id="badge">1</div>
 
 </div>
-
 
 <!-- CHAT -->
 
@@ -222,7 +215,7 @@ to{opacity:1;transform:translateY(0)}
 <div id="header">
 
 <div id="header-left">
-<img src="/logo.png">
+<img src="https://lead-chatbot-gti5.onrender.com/logo.png">
 SnowSkye AI
 </div>
 
@@ -242,15 +235,16 @@ SnowSkye AI
 
 </div>
 
-
 <script>
 
-const API_URL =
-"https://lead-chatbot-gti5.onrender.com";
+/* CONFIG */
 
-const API_KEY =
-"sk-55c2d0e8-08b3-44af-aa9c-3329efacdcd2"; // CHANGE
+const API_URL = "https://lead-chatbot-gti5.onrender.com";
 
+const API_KEY = "sk-snowskyeAI2026";
+
+
+/* ELEMENTS */
 
 const btn=document.getElementById("btn");
 const chat=document.getElementById("chat");
@@ -260,17 +254,15 @@ const send=document.getElementById("send");
 const messages=document.getElementById("messages");
 const badge=document.getElementById("badge");
 
-let unread=0;
 
-// SESSION
+/* SESSION */
 
-let sessionId=
+let sessionId =
 localStorage.getItem("snowskye_session");
 
 if(!sessionId){
 
-sessionId=
-crypto.randomUUID();
+sessionId = crypto.randomUUID();
 
 localStorage.setItem(
 "snowskye_session",
@@ -280,7 +272,7 @@ sessionId
 }
 
 
-// OPEN
+/* OPEN */
 
 btn.onclick=()=>{
 
@@ -288,12 +280,10 @@ chat.style.display="flex";
 
 badge.style.display="none";
 
-unread=0;
-
 };
 
 
-// CLOSE
+/* CLOSE */
 
 close.onclick=()=>{
 
@@ -302,35 +292,32 @@ chat.style.display="none";
 };
 
 
-// ADD MESSAGE
+/* ADD MESSAGE */
 
 function addMessage(text,user){
 
-const row=
-document.createElement("div");
+const row=document.createElement("div");
 
-row.className=
-"row "+(user?"user":"bot");
+row.className="row "+(user?"user":"bot");
 
 
-const avatar=
-document.createElement("img");
+const avatar=document.createElement("img");
 
 avatar.className="avatar";
 
-avatar.src=
-user?"/user.png":"/bot.png";
+avatar.src=user
+?"https://lead-chatbot-gti5.onrender.com/user.png"
+:"https://lead-chatbot-gti5.onrender.com/bot.png";
 
 
-const bubble=
-document.createElement("div");
+const bubble=document.createElement("div");
 
 bubble.className="bubble";
 
+bubble.innerText=text;
+
 
 if(user){
-
-bubble.innerText=text;
 
 row.appendChild(bubble);
 row.appendChild(avatar);
@@ -340,62 +327,16 @@ row.appendChild(avatar);
 row.appendChild(avatar);
 row.appendChild(bubble);
 
-streamText(bubble,text);
-
 }
-
 
 messages.appendChild(row);
 
-messages.scrollTop=
-messages.scrollHeight;
-
-
-// unread badge
-
-if(chat.style.display!="flex" && !user){
-
-unread++;
-
-badge.innerText=unread;
-
-badge.style.display="flex";
-
-playSound();
-
-}
+messages.scrollTop=messages.scrollHeight;
 
 }
 
 
-// STREAM TEXT EFFECT
-
-function streamText(element,text){
-
-let i=0;
-
-const speed=15;
-
-function type(){
-
-if(i<text.length){
-
-element.innerHTML+=text.charAt(i);
-
-i++;
-
-setTimeout(type,speed);
-
-}
-
-}
-
-type();
-
-}
-
-
-// TYPING
+/* TYPING */
 
 function showTyping(){
 
@@ -406,20 +347,17 @@ row.className="row bot";
 row.id="typing";
 
 row.innerHTML=`
-
-<img src="/bot.png" class="avatar">
-
+<img src="https://lead-chatbot-gti5.onrender.com/bot.png" class="avatar">
 <div class="bubble typing">
-
 <span></span>
 <span></span>
 <span></span>
-
 </div>
-
 `;
 
 messages.appendChild(row);
+
+messages.scrollTop=messages.scrollHeight;
 
 }
 
@@ -433,21 +371,7 @@ if(t)t.remove();
 }
 
 
-// SOUND
-
-function playSound(){
-
-const audio=
-new Audio(
-"https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
-);
-
-audio.play();
-
-}
-
-
-// SEND MESSAGE
+/* SEND MESSAGE */
 
 async function sendMessage(){
 
@@ -463,36 +387,43 @@ showTyping();
 
 try{
 
-const res=
-await fetch(
-API_URL+"/chat",
-{
+console.log("Sending...");
+
+const res=await fetch(API_URL+"/chat",{
+
 method:"POST",
+
 headers:{
 "Content-Type":"application/json"
 },
+
 body:JSON.stringify({
+
 apiKey:API_KEY,
 message:text,
 sessionId
+
 })
-}
-);
 
-const data=
-await res.json();
+});
 
-hideTyping();
-
-addMessage(data.reply,false);
-
-}
-catch{
+const data=await res.json();
 
 hideTyping();
 
 addMessage(
-"Connection error",
+data.reply || "No response",
+false
+);
+
+}catch(error){
+
+console.error(error);
+
+hideTyping();
+
+addMessage(
+"Server offline",
 false
 );
 
@@ -503,10 +434,26 @@ false
 
 send.onclick=sendMessage;
 
-input.onkeypress=e=>{
+input.addEventListener(
+"keypress",
+e=>{
 if(e.key==="Enter")
 sendMessage();
-};
+}
+);
+
+
+/* WELCOME */
+
+setTimeout(()=>{
+
+addMessage(
+"Hello! Welcome to SnowSkye AI. How can I help you?",
+false
+);
+
+},800);
+
 
 </script>
 
